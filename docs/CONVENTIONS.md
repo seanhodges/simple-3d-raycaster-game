@@ -281,10 +281,6 @@ This is a deliberate design choice:
 
 ## Testing Patterns
 
-### Current State: Manual Testing Only
-
-There are no automated tests. Validation is done by running the game and visually checking behavior.
-
 ### Testability by Design
 
 The architecture is deliberately test-friendly:
@@ -292,7 +288,7 @@ The architecture is deliberately test-friendly:
 - All state flows through `GameState` — easy to set up test fixtures
 - `rc_cast` produces a `RayHit[]` buffer — easy to assert against expected distances
 
-### Recommended Test Strategy (if tests are added)
+### Test Strategy
 
 ```c
 // Example: test that a ray looking straight at a wall 3 cells away
