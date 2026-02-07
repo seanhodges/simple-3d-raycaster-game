@@ -1,20 +1,12 @@
-# Portable C Raycaster (SDL3)
+# Simple 3D Raycaster Game
 
-A lightweight, Wolfenstein 3D-style raycaster engine in pure C using SDL3.
+A lightweight 3D-style raycaster engine.
 
 ## Architecture
 
-```
-┌─────────────┐     ┌───────────────┐     ┌──────────────┐
-│   main.c    │────▶│  raycaster.c  │────▶│ platform_sdl │
-│  game loop  │     │  DDA core     │     │  SDL3 render │
-│  (entry pt) │     │  (no SDL!)    │     │  input poll  │
-└─────────────┘     └───────────────┘     └──────────────┘
-```
-
-- **raycaster.h / .c** — Map loading, player movement, DDA raycasting. Fills a `RayHit` buffer. Contains zero platform code.
-- **platform_sdl.h / .c** — SDL3 window, keyboard input (WASD + arrows), renders wall strips from the hit buffer.
-- **main.c** — Fixed-timestep game loop tying it all together.
+- **raycaster.c** — Map loading, player movement, DDA raycasting. Fills a `RayHit` buffer.
+- **platform_sdl.c** — frontend for SDL3: window, keyboard input, renders wall strips from the hit buffer.
+- **main.c** — Main game loop tying it all together.
 
 ## Controls
 
@@ -40,7 +32,7 @@ make OS=windows
 
 # Run
 ./raycaster              # uses map.txt in current directory
-./raycaster mymap.txt    # custom map
+./raycaster map.txt      # load specific map file
 ```
 
 ## Map Format (`map.txt`)
@@ -64,6 +56,3 @@ XXXXXXX
 - **Speed:** Tweak `MOVE_SPD` and `ROT_SPD` in `raycaster.c`.
 - **Resolution:** Change `SCREEN_W` / `SCREEN_H` in `raycaster.h`.
 
-## Extending
-
-The `wall_type` field in `RayHit` is ready for multi-colour walls — just assign different integers in the map loader and add a colour lookup in `platform_sdl.c`.
