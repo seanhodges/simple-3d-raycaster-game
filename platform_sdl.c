@@ -28,19 +28,19 @@ static void rgba(unsigned int c, int *r, int *g, int *b, int *a)
 bool platform_init(const char *title)
 {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+        fprintf(stderr, "platform_init: SDL_Init failed: %s\n", SDL_GetError());
         return false;
     }
 
     window = SDL_CreateWindow(title, SCREEN_W, SCREEN_H, 0);
     if (!window) {
-        fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+        fprintf(stderr, "platform_init: SDL_CreateWindow failed: %s\n", SDL_GetError());
         return false;
     }
 
     renderer = SDL_CreateRenderer(window, NULL);
     if (!renderer) {
-        fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        fprintf(stderr, "platform_init: SDL_CreateRenderer failed: %s\n", SDL_GetError());
         return false;
     }
 
@@ -119,4 +119,10 @@ void platform_render(const GameState *gs)
     SDL_RenderDebugText(renderer, 8, 8, dbg);
 
     SDL_RenderPresent(renderer);
+}
+
+double platform_get_time(void)
+{
+    return (double)SDL_GetPerformanceCounter()
+         / (double)SDL_GetPerformanceFrequency();
 }

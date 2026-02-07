@@ -316,13 +316,14 @@ A minimal `test_raycaster.c` that links only `raycaster.o` and runs assertions w
 
 ### Axis-Independent Collision
 
-Movement is tested per-axis with a margin:
+Movement is tested per-axis with a named margin constant:
 
 ```c
-float margin = 0.15f;
-if (!is_wall(m, p->x + dx + (dx > 0 ? margin : -margin), p->y))
+#define COL_MARGIN 0.15f   /* wall collision margin (map units) */
+
+if (!is_wall(m, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
     p->x += dx;
-if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? margin : -margin)))
+if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
     p->y += dy;
 ```
 
@@ -349,78 +350,87 @@ Note that the X-axis check happens first, and the Y-axis check uses the **update
 
 ---
 
-## Inconsistencies & Recommended Standards
+## Recommended Standards
 
-The codebase is well-written, but a few inconsistencies exist. Here are the recommended standards going forward.
+These are the codified standards this project follows. They were established by identifying the strongest patterns in the codebase and applying them consistently.
 
-### 1. Header Include in `main.c`
+### 1. Platform Isolation in `main.c`
 
-**Issue:** `main.c` directly includes `<SDL3/SDL.h>` for `SDL_GetPerformanceCounter` and timer types.
+`main.c` must not include any platform-specific headers (e.g., `<SDL3/SDL.h>`). All platform interaction goes through the `platform_` API. The timer is accessed via `platform_get_time()`, which returns a `double` in seconds:
 
-**Current:**
 ```c
-// main.c
-#include "raycaster.h"
-#include "platform_sdl.h"
-#include <SDL3/SDL.h>       // Leaks SDL into the orchestrator
+// main.c — no SDL includes
+double prev = platform_get_time();
+// ...
+double now = platform_get_time();
+float frame = (float)(now - prev);
 ```
 
-**Recommended:** Expose a `platform_get_time()` function in `platform_sdl.h` that wraps the SDL timer. This would make `main.c` fully platform-agnostic — if someone wanted to port to a different backend, they'd only change `platform_*.c`.
+If someone ports the engine to a different backend, only `platform_*.c` files should change.
 
-### 2. `const` Correctness on Input
+### 2. `const` Correctness
 
-**Issue:** `platform_poll_input` takes `Input *in` — the function writes to it, which is correct. However, `rc_update` takes `const Input *in`, which is also correct. This is already consistent, but worth noting as the standard:
+Functions that only read a struct take `const *`. Functions that write take non-const `*`. This is enforced consistently:
 
-**Rule:** Functions that read a struct take `const *`. Functions that write take non-const `*`. Always be explicit.
-
-### 3. Magic Numbers
-
-**Issue:** The collision margin (`0.15f`) and frame spike clamp (`0.25f`) are hardcoded inline.
-
-**Recommended:** Define them as named constants:
 ```c
-#define COL_MARGIN 0.15f      /* wall collision margin (map units)  */
-#define MAX_FRAME  0.25f      /* max frame time before clamping (s) */
+void rc_update(GameState *gs, const Input *in, float dt);  // writes gs, reads in
+void platform_render(const GameState *gs);                  // reads gs only
+bool platform_poll_input(Input *in);                        // writes in
 ```
+
+**Rule:** Always be explicit about mutability. Never cast away `const`.
+
+### 3. Named Constants Over Magic Numbers
+
+All tunable values must be named `#define` constants with a comment explaining their purpose and unit:
+
+```c
+#define COL_MARGIN 0.15f   /* wall collision margin (map units) */
+#define MAX_FRAME  0.25f   /* max frame time before clamping (s)*/
+#define MOVE_SPD   3.0f    /* map-units / second                */
+```
+
+No bare numeric literals in logic code — if a number controls behavior, it gets a name.
 
 ### 4. Private Constants Scope
 
-**Issue:** `PI`, `MOVE_SPD`, and `ROT_SPD` are `#define`d in `raycaster.c` (not in the header). This is actually **good practice** — they're implementation details. But `TICK_RATE` and `DT` are in `main.c`.
+Constants used by only one file are `#define`d in that `.c` file, not in a header. Only constants needed by multiple files belong in headers:
 
-**Rule:** Constants used by only one file should be `#define`d in that `.c` file, not in a header. Only constants needed by multiple files belong in headers. The current approach is correct — maintain it.
+| Location | Examples | Why |
+|---|---|---|
+| `raycaster.h` | `SCREEN_W`, `FOV_DEG`, `COL_WALL` | Used by both core and platform |
+| `raycaster.c` | `PI`, `MOVE_SPD`, `ROT_SPD`, `COL_MARGIN` | Implementation detail of the core |
+| `main.c` | `TICK_RATE`, `DT`, `MAX_FRAME` | Implementation detail of the game loop |
+
+This minimizes header pollution and keeps the public API surface small.
 
 ### 5. Error Message Format
 
-**Current:** Some error messages include the function name, some don't:
-```c
-fprintf(stderr, "rc_load_map: cannot open '%s'\n", path);      // ✓ has prefix
-fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());      // ✗ no prefix
-fprintf(stderr, "Failed to load map '%s'\n", map_path);         // ✗ no prefix
-```
+All `fprintf(stderr, ...)` messages follow a consistent, grep-able format:
 
-**Recommended standard:**
 ```
 <function_name>: <what failed> [: <detail>]
 ```
 
-Every `fprintf(stderr, ...)` should start with the function name for grep-ability.
-
-### 6. Typedef vs. Struct Tags
-
-**Current:** All types use anonymous structs with typedef:
+Examples:
 ```c
-typedef struct {
-    float x, y;
-} Player;
+fprintf(stderr, "rc_load_map: cannot open '%s'\n", path);
+fprintf(stderr, "platform_init: SDL_Init failed: %s\n", SDL_GetError());
+fprintf(stderr, "main: failed to load map '%s'\n", map_path);
 ```
 
-This works fine but prevents forward declarations. If the codebase grows and circular dependencies emerge:
+Every error message must include the originating function name so developers can locate the source with `grep`.
 
-**Recommended:** Use both a tag and a typedef:
+### 6. Tagged Typedefs
+
+All struct typedefs include a matching tag name to support forward declarations:
+
 ```c
 typedef struct Player {
     float x, y;
+    float dir_x, dir_y;
+    float plane_x, plane_y;
 } Player;
 ```
 
-This is a minor point for a project this size, but good practice for growth.
+This allows files to forward-declare `struct Player;` without including the full header — essential as the codebase grows and circular dependencies may emerge.

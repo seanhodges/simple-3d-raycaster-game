@@ -19,34 +19,34 @@
 #define COL_WALL_SHADE 0x000068FF /* slightly darker for y-side hits */
 
 /* ── Per-column ray result ─────────────────────────────────────────── */
-typedef struct {
+typedef struct RayHit {
     float wall_dist;     /* perpendicular distance to wall          */
     int   side;          /* 0 = x-side hit, 1 = y-side hit          */
     int   wall_type;     /* tile value (for future multi-colour)     */
 } RayHit;
 
 /* ── Player state ──────────────────────────────────────────────────── */
-typedef struct {
+typedef struct Player {
     float x, y;          /* position in map units                    */
     float dir_x, dir_y;  /* direction vector                         */
     float plane_x, plane_y; /* camera plane (perpendicular to dir)   */
 } Player;
 
 /* ── World map ─────────────────────────────────────────────────────── */
-typedef struct {
+typedef struct Map {
     int  cells[MAP_MAX_H][MAP_MAX_W];
     int  w, h;
 } Map;
 
 /* ── Complete game state ───────────────────────────────────────────── */
-typedef struct {
+typedef struct GameState {
     Map     map;
     Player  player;
     RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
 } GameState;
 
 /* ── Input flags (set by platform layer) ───────────────────────────── */
-typedef struct {
+typedef struct Input {
     bool forward, back, strafe_left, strafe_right;
     bool turn_left, turn_right;
 } Input;

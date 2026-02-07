@@ -4,12 +4,12 @@
 #include "raycaster.h"
 #include "platform_sdl.h"
 
-#include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
 
 #define TICK_RATE  60            /* logic updates per second          */
 #define DT         (1.0f / TICK_RATE)
+#define MAX_FRAME  0.25f         /* max frame time before clamping (s)*/
 
 int main(int argc, char *argv[])
 {
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     memset(&gs, 0, sizeof(gs));
 
     if (!rc_load_map(&gs, map_path)) {
-        fprintf(stderr, "Failed to load map '%s'\n", map_path);
+        fprintf(stderr, "main: failed to load map '%s'\n", map_path);
         return 1;
     }
 
@@ -35,18 +35,17 @@ int main(int argc, char *argv[])
     Input  input;
     memset(&input, 0, sizeof(input));
 
-    Uint64 prev  = SDL_GetPerformanceCounter();
-    Uint64 freq  = SDL_GetPerformanceFrequency();
+    double prev  = platform_get_time();
     float  accum = 0.0f;
 
     bool running = true;
     while (running) {
-        Uint64 now   = SDL_GetPerformanceCounter();
-        float  frame = (float)(now - prev) / (float)freq;
+        double now   = platform_get_time();
+        float  frame = (float)(now - prev);
         prev = now;
 
         /* Clamp large spikes (e.g. window drag) */
-        if (frame > 0.25f) frame = 0.25f;
+        if (frame > MAX_FRAME) frame = MAX_FRAME;
         accum += frame;
 
         /* Poll events once per frame */
