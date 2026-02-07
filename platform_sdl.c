@@ -5,6 +5,7 @@
  */
 #include "platform_sdl.h"
 #include "raycaster.h"
+#include "texture.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -13,6 +14,7 @@
 /* ── Internal state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
 static SDL_Renderer *renderer = NULL;
+static SDL_Texture  *fb_tex   = NULL;  /* streaming framebuffer       */
 
 /* ── Helpers: unpack RGBA8888 → 0-255 components ──────────────────── */
 static void rgba(unsigned int c, int *r, int *g, int *b, int *a)
@@ -44,11 +46,20 @@ bool platform_init(const char *title)
         return false;
     }
 
+    fb_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+                               SDL_TEXTUREACCESS_STREAMING,
+                               SCREEN_W, SCREEN_H);
+    if (!fb_tex) {
+        fprintf(stderr, "platform_init: SDL_CreateTexture failed: %s\n", SDL_GetError());
+        return false;
+    }
+
     return true;
 }
 
 void platform_shutdown(void)
 {
+    if (fb_tex)   SDL_DestroyTexture(fb_tex);
     if (renderer) SDL_DestroyRenderer(renderer);
     if (window)   SDL_DestroyWindow(window);
     SDL_Quit();
@@ -77,42 +88,77 @@ bool platform_poll_input(Input *in)
     return true;   /* keep running */
 }
 
+/* ── Helpers: darken a colour for y-side shading ─────────────────── */
+
+static unsigned int darken(unsigned int c)
+{
+    int r = (c >> 24) & 0xFF;
+    int g = (c >> 16) & 0xFF;
+    int b = (c >>  8) & 0xFF;
+    int a =  c        & 0xFF;
+    return (unsigned int)((r >> 1) << 24 | (g >> 1) << 16 | (b >> 1) << 8 | a);
+}
+
 void platform_render(const GameState *gs)
 {
-    int r, g, b, a;
+    /* Lock the streaming texture for direct pixel writes */
+    void *tex_pixels = NULL;
+    int   tex_pitch  = 0;
+    if (!SDL_LockTexture(fb_tex, NULL, &tex_pixels, &tex_pitch)) {
+        return;
+    }
+    unsigned int *fb = (unsigned int *)tex_pixels;
+    int fb_stride = tex_pitch / 4;
 
-    /* Clear to ceiling colour */
-    rgba(COL_CEIL, &r, &g, &b, &a);
-    SDL_SetRenderDrawColor(renderer, r, g, b, a);
-    SDL_RenderClear(renderer);
+    /* Fill the entire framebuffer with ceiling and floor colours */
+    for (int y = 0; y < SCREEN_H / 2; y++)
+        for (int x = 0; x < SCREEN_W; x++)
+            fb[y * fb_stride + x] = COL_CEIL;
+    for (int y = SCREEN_H / 2; y < SCREEN_H; y++)
+        for (int x = 0; x < SCREEN_W; x++)
+            fb[y * fb_stride + x] = COL_FLOOR;
 
-    /* Draw floor (bottom half) */
-    rgba(COL_FLOOR, &r, &g, &b, &a);
-    SDL_SetRenderDrawColor(renderer, r, g, b, a);
-    SDL_FRect floor_rect = { 0, SCREEN_H / 2.0f, SCREEN_W, SCREEN_H / 2.0f };
-    SDL_RenderFillRect(renderer, &floor_rect);
-
-    /* Draw wall strips from the hit buffer */
+    /* Draw textured wall strips from the hit buffer */
     for (int x = 0; x < SCREEN_W; x++) {
         float dist = gs->hits[x].wall_dist;
         int line_h = (int)(SCREEN_H / dist);
 
         int draw_start = -line_h / 2 + SCREEN_H / 2;
-        if (draw_start < 0) draw_start = 0;
-        int draw_end = line_h / 2 + SCREEN_H / 2;
-        if (draw_end >= SCREEN_H) draw_end = SCREEN_H - 1;
+        int draw_end   =  line_h / 2 + SCREEN_H / 2;
 
-        /* Shade y-side hits slightly darker for depth cue */
-        unsigned int col = (gs->hits[x].side == 1) ? COL_WALL_SHADE : COL_WALL;
-        rgba(col, &r, &g, &b, &a);
-        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+        /* Texture X coordinate from fractional wall hit position */
+        int tex_x = (int)(gs->hits[x].wall_x * TEX_SIZE);
+        if (tex_x >= TEX_SIZE) tex_x = TEX_SIZE - 1;
 
-        SDL_FRect strip = { (float)x, (float)draw_start,
-                            1.0f, (float)(draw_end - draw_start) };
-        SDL_RenderFillRect(renderer, &strip);
+        int wt   = gs->hits[x].wall_type;
+        int side = gs->hits[x].side;
+
+        /* Clamp visible range to screen */
+        int y_start = draw_start < 0 ? 0 : draw_start;
+        int y_end   = draw_end >= SCREEN_H ? SCREEN_H - 1 : draw_end;
+
+        for (int y = y_start; y <= y_end; y++) {
+            /* Map screen Y to texture Y (0 .. TEX_SIZE-1) */
+            int d = y * 2 - SCREEN_H + line_h;  /* offset from strip top */
+            int tex_y = (d * TEX_SIZE) / (line_h * 2);
+            if (tex_y < 0)            tex_y = 0;
+            if (tex_y >= TEX_SIZE)    tex_y = TEX_SIZE - 1;
+
+            unsigned int col = tm_get_pixel(wt, tex_x, tex_y);
+
+            /* Darken y-side hits for depth cue */
+            if (side == 1) col = darken(col);
+
+            fb[y * fb_stride + x] = col;
+        }
     }
 
-    /* Optional: debug overlay showing player coords */
+    SDL_UnlockTexture(fb_tex);
+
+    /* Blit the framebuffer to screen */
+    SDL_RenderTexture(renderer, fb_tex, NULL, NULL);
+
+    /* Debug overlay showing player coords */
     char dbg[64];
     snprintf(dbg, sizeof(dbg), "pos %.1f, %.1f", gs->player.x, gs->player.y);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

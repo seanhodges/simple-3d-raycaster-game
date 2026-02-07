@@ -3,6 +3,7 @@
  */
 #include "raycaster.h"
 #include "platform_sdl.h"
+#include "texture.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -28,6 +29,11 @@ int main(int argc, char *argv[])
     }
 
     if (!platform_init("Raycaster – SDL3")) {
+        return 1;
+    }
+
+    if (!tm_init("assets/textures.bmp")) {
+        platform_shutdown();
         return 1;
     }
 
@@ -62,6 +68,7 @@ int main(int argc, char *argv[])
         platform_render(&gs);
     }
 
+    tm_shutdown();
     platform_shutdown();
     return 0;
 }

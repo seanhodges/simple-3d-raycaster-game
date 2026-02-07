@@ -34,20 +34,27 @@ graph TB
 
     subgraph "Layer 2 — Platform"
         PLAT["platform_sdl.c / .h<br/>SDL3 window, input, rendering"]
+        TEX["texture.c / .h<br/>Texture atlas manager"]
     end
 
     subgraph "External"
         SDL3["SDL3 Library"]
         MAP["map.txt"]
+        BMP["assets/textures.bmp"]
     end
 
     MAIN --> RC
     MAIN --> PLAT
+    MAIN --> TEX
     PLAT --> SDL3
+    PLAT --> TEX
+    TEX --> SDL3
+    TEX --> BMP
     RC --> MAP
 
     style RC fill:#1a3a5c,stroke:#4a9eff,color:#fff
     style PLAT fill:#3a1a3a,stroke:#9a4aff,color:#fff
+    style TEX fill:#3a1a3a,stroke:#9a4aff,color:#fff
     style MAIN fill:#1a3a1a,stroke:#4aff4a,color:#fff
 ```
 
@@ -88,9 +95,20 @@ This separation is an important architectural decision in the project. It means:
 Responsibilities:
 - Window creation and teardown
 - Keyboard state polling (continuous, not event-based — critical for smooth movement)
-- Rendering: converts the `RayHit[]` buffer into colored vertical strips
+- Rendering: converts the `RayHit[]` buffer into textured vertical strips using a streaming framebuffer
 
 The platform layer **reads from** the core but never writes to it, except through the `Input` struct. Data flows in one direction.
+
+### Texture Manager (`texture.c` / `texture.h`)
+
+**Design pattern: Asset Manager** — loads and provides pixel-level access to wall textures.
+
+Responsibilities:
+- Load a horizontal texture atlas (BMP) containing `TEX_COUNT` (10) square textures of `TEX_SIZE` (64) pixels each
+- Provide `tm_get_pixel(wall_type, tex_x, tex_y)` for colour sampling
+- Generate procedural fallback textures if the BMP file is missing
+
+The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
 
 ### Layer 3: Orchestrator (`main.c`)
 
@@ -256,13 +274,19 @@ Events are still polled for quit/escape detection, but movement reads from the s
 
 ### Rendering Pipeline
 
-The renderer is intentionally simple — no textures, no sprites, no transparency:
+The renderer uses a streaming framebuffer texture for pixel-level textured wall rendering:
 
-1. **Clear** the screen to `COL_CEIL` (ceiling color fills the entire screen)
-2. **Draw floor** — a single rectangle covering the bottom half
-3. **Draw walls** — for each of 800 columns, calculate strip height from `hits[x].wall_dist`, draw a 1px-wide filled rectangle
-4. **Debug overlay** — player coordinates rendered as text (top-left corner)
-5. **Present** — flip the back buffer to screen
+1. **Lock** the streaming framebuffer texture for direct pixel writes
+2. **Fill** the framebuffer with ceiling (top half) and floor (bottom half) colours
+3. **Draw walls** — for each of 800 columns:
+   - Calculate strip height from `hits[x].wall_dist`
+   - Derive `tex_x` from `hits[x].wall_x` (fractional hit position on the wall face)
+   - For each pixel in the strip, compute `tex_y` from the vertical position
+   - Sample the colour from `tm_get_pixel(wall_type, tex_x, tex_y)`
+   - Apply y-side darkening for depth cue (halve RGB components)
+4. **Unlock** and blit the framebuffer to the renderer
+5. **Debug overlay** — player coordinates rendered as text (top-left corner)
+6. **Present** — flip the back buffer to screen
 
 ### State Management
 
@@ -292,9 +316,12 @@ XXXX  XXXX  XXXX
 
 | Character | Meaning | Cell Value |
 |---|---|---|
-| `X` or `#` | Wall | `1` |
+| `X` or `#` | Wall (texture 0) | `1` |
+| `0`–`9` | Wall (texture N) | `N + 1` |
 | `P` or `p` | Player spawn (floor) | `0` |
 | ` ` (space) | Empty floor | `0` |
+
+Cell values encode both wall presence and texture type: `0` = floor, `>= 1` = wall with `wall_type = cell - 1`. This allows `is_wall()` to check `!= 0` while preserving the texture index.
 
 Constraints:
 - Maximum size: 64×64 (`MAP_MAX_W` / `MAP_MAX_H`)
@@ -329,6 +356,7 @@ classDiagram
 
     class RayHit {
         float wall_dist
+        float wall_x
         int side
         int wall_type
     }

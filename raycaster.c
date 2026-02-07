@@ -39,7 +39,9 @@ bool rc_load_map(GameState *gs, const char *path)
         for (int col = 0; col < len; col++) {
             char c = line[col];
             if (c == 'X' || c == '#') {
-                gs->map.cells[row][col] = 1;          /* wall */
+                gs->map.cells[row][col] = 1;          /* wall, type 0 */
+            } else if (c >= '0' && c <= '9') {
+                gs->map.cells[row][col] = (c - '0') + 1; /* wall, type N */
             } else if (c == 'P' || c == 'p') {
                 gs->map.cells[row][col] = 0;           /* floor */
                 gs->player.x = col + 0.5f;
@@ -196,8 +198,22 @@ void rc_cast(GameState *gs)
 
         if (perp < 0.001f) perp = 0.001f;
 
+        /* Fractional position along the wall face (0.0 – 1.0) */
+        float wall_x;
+        if (side == 0)
+            wall_x = p->y + perp * ray_dy;
+        else
+            wall_x = p->x + perp * ray_dx;
+        wall_x -= floorf(wall_x);
+
+        /* Extract wall_type from cell value (cell = wall_type + 1) */
+        int cell = 0;
+        if (map_x >= 0 && map_y >= 0 && map_x < m->w && map_y < m->h)
+            cell = m->cells[map_y][map_x];
+
         gs->hits[x].wall_dist = perp;
+        gs->hits[x].wall_x    = wall_x;
         gs->hits[x].side      = side;
-        gs->hits[x].wall_type = 1;
+        gs->hits[x].wall_type = (cell > 0) ? cell - 1 : 0;
     }
 }
