@@ -1,0 +1,68 @@
+/*  main.c  –  entry point & fixed-step game loop
+ *  ───────────────────────────────────────────────
+ */
+#include "raycaster.h"
+#include "platform_sdl.h"
+
+#include <SDL3/SDL.h>
+#include <stdio.h>
+#include <string.h>
+
+#define TICK_RATE  60            /* logic updates per second          */
+#define DT         (1.0f / TICK_RATE)
+
+int main(int argc, char *argv[])
+{
+    (void)argc; (void)argv;
+
+    const char *map_path = "map.txt";
+    if (argc > 1) map_path = argv[1];
+
+    /* ── Initialise ───────────────────────────────────────────────── */
+    GameState gs;
+    memset(&gs, 0, sizeof(gs));
+
+    if (!rc_load_map(&gs, map_path)) {
+        fprintf(stderr, "Failed to load map '%s'\n", map_path);
+        return 1;
+    }
+
+    if (!platform_init("Raycaster – SDL3")) {
+        return 1;
+    }
+
+    /* ── Main loop (fixed timestep with accumulator) ──────────────── */
+    Input  input;
+    memset(&input, 0, sizeof(input));
+
+    Uint64 prev  = SDL_GetPerformanceCounter();
+    Uint64 freq  = SDL_GetPerformanceFrequency();
+    float  accum = 0.0f;
+
+    bool running = true;
+    while (running) {
+        Uint64 now   = SDL_GetPerformanceCounter();
+        float  frame = (float)(now - prev) / (float)freq;
+        prev = now;
+
+        /* Clamp large spikes (e.g. window drag) */
+        if (frame > 0.25f) frame = 0.25f;
+        accum += frame;
+
+        /* Poll events once per frame */
+        running = platform_poll_input(&input);
+
+        /* Fixed-step logic updates */
+        while (accum >= DT) {
+            rc_update(&gs, &input, DT);
+            accum -= DT;
+        }
+
+        /* Render at display rate */
+        rc_cast(&gs);
+        platform_render(&gs);
+    }
+
+    platform_shutdown();
+    return 0;
+}

@@ -1,0 +1,65 @@
+#ifndef RAYCASTER_H
+#define RAYCASTER_H
+
+#include <stdbool.h>
+
+/* ── Display constants ─────────────────────────────────────────────── */
+#define SCREEN_W  800
+#define SCREEN_H  600
+#define FOV_DEG   60.0f
+
+/* ── Map limits ────────────────────────────────────────────────────── */
+#define MAP_MAX_W 64
+#define MAP_MAX_H 64
+
+/* ── Colours (RGBA8888) ────────────────────────────────────────────── */
+#define COL_CEIL  0xFFFFFFFF   /* white   */
+#define COL_FLOOR 0xFFFFFFFF   /* white   */
+#define COL_WALL  0x00008BFF   /* dk blue */
+#define COL_WALL_SHADE 0x000068FF /* slightly darker for y-side hits */
+
+/* ── Per-column ray result ─────────────────────────────────────────── */
+typedef struct {
+    float wall_dist;     /* perpendicular distance to wall          */
+    int   side;          /* 0 = x-side hit, 1 = y-side hit          */
+    int   wall_type;     /* tile value (for future multi-colour)     */
+} RayHit;
+
+/* ── Player state ──────────────────────────────────────────────────── */
+typedef struct {
+    float x, y;          /* position in map units                    */
+    float dir_x, dir_y;  /* direction vector                         */
+    float plane_x, plane_y; /* camera plane (perpendicular to dir)   */
+} Player;
+
+/* ── World map ─────────────────────────────────────────────────────── */
+typedef struct {
+    int  cells[MAP_MAX_H][MAP_MAX_W];
+    int  w, h;
+} Map;
+
+/* ── Complete game state ───────────────────────────────────────────── */
+typedef struct {
+    Map     map;
+    Player  player;
+    RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
+} GameState;
+
+/* ── Input flags (set by platform layer) ───────────────────────────── */
+typedef struct {
+    bool forward, back, strafe_left, strafe_right;
+    bool turn_left, turn_right;
+} Input;
+
+/* ── Public API ────────────────────────────────────────────────────── */
+
+/**  Load map from file. Returns false on failure. */
+bool rc_load_map(GameState *gs, const char *path);
+
+/**  Update player position/rotation from input.  dt in seconds. */
+void rc_update(GameState *gs, const Input *in, float dt);
+
+/**  Cast all rays and fill gs->hits[]. */
+void rc_cast(GameState *gs);
+
+#endif /* RAYCASTER_H */
