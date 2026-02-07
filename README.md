@@ -2,12 +2,6 @@
 
 A lightweight 3D-style raycaster engine.
 
-## Architecture
-
-- **raycaster.c** — Map loading, player movement, DDA raycasting. Fills a `RayHit` buffer.
-- **platform_sdl.c** — frontend for SDL3: window, keyboard input, renders wall strips from the hit buffer.
-- **main.c** — Main game loop tying it all together.
-
 ## Controls
 
 | Key             | Action        |
@@ -35,21 +29,7 @@ make OS=windows
 ./raycaster map.txt      # load specific map file
 ```
 
-## Map Format (`map.txt`)
-
-```
-XXXXXXX
-X P   X
-X XXX X
-X     X
-XXXXXXX
-```
-
-- `X` or `#` — Wall
-- `P` — Player start (exactly one required)
-- Space — Empty floor
-
-## Customisation
+## Customisations
 
 - **Colours:** Edit the `COL_*` defines in `raycaster.h` (RGBA8888 format).
 - **FOV:** Change `FOV_DEG` in `raycaster.h` (default 60°).
