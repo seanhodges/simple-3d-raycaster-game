@@ -1,17 +1,17 @@
-XXXXXXXXXXXXXXXX
-X     X        X
-XX XXXXX  XXXX X
-X  X         X X
-X XX  XXXXXX X X
-X X        X X X
-X XP         X X
-X X        X X X
-X XXXXXXXX XXX X
-X        X X X X
-X  XXXX  X X X X
-X     X  X   X X
-XXXX  XXXXXX X X
-X            X X
-X  XXXXXXXXXXX X
-X             FX
-XXXXXXXXXXXXXXXX
+XXXXXXX1XXXXXXXX
+X   F43        X
+X 33333 33333X X
+X 3     3    X X
+X 3 33333333 X X
+X 3 5  5  5  X 1
+X 3 P        2 X
+X 3 5  5  5  X X
+X 3333333333 X X
+X      3 3 3 X X
+X  333 3 3 3 X X
+X   3    3   X 1
+X3333 333333 X X
+X     3      X X
+X  3333333333X X
+X              X
+XXXXXXX1XXXXXXXX
