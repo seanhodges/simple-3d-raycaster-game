@@ -62,7 +62,7 @@ ASCII text file where:
 ## Testing
 
 ```bash
-make test         # Build and run all 20 unit tests (no SDL required)
+make test         # Build and run all unit tests (no SDL required)
 ```
 
 Tests live in `test_raycaster.c` and link only against `raycaster.o`. They cover map loading, player movement/collision, DDA raycasting distances, and integration scenarios. Run from the project root (tests load `map.txt`).

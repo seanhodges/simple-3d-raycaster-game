@@ -298,15 +298,6 @@ The tests use a **minimal custom harness** — no external test framework. The h
 
 Exit code is `0` on all-pass, `1` on any failure — compatible with CI.
 
-### What's Covered (20 tests)
-
-| Category | Tests | What's Verified |
-|---|---|---|
-| **rc_load_map** | 3 | Map dimensions, wall parsing, player spawn position, missing file rejection, boundary walls |
-| **rc_update** | 8 | No-input stability, forward/backward movement at correct speed, strafing direction, wall collision blocking, wall sliding, rotation preserving unit vector length |
-| **rc_cast** | 7 | Straight-axis distances (east, north), close-wall accuracy, all-columns-filled invariant, left-right symmetry, side detection (x-side vs y-side) |
-| **Integration** | 2 | Load-then-cast with real map file, walk-then-cast distance decrease |
-
 ### Test Fixture Pattern
 
 Tests build game state programmatically using `init_box_map()` — a helper that creates a walled box of any size with the player at a specified position and direction. The camera plane is auto-derived from `FOV_DEG`:
