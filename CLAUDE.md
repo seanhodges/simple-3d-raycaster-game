@@ -59,9 +59,13 @@ ASCII text file where:
 - Space = empty floor
 - Map must be enclosed by walls on all edges
 
-## No Tests
+## Testing
 
-There is no test framework or automated tests. Validation is done manually by running the game. The architecture (platform-independent core) is well-suited for adding unit tests to `raycaster.c` in the future.
+```bash
+make test         # Build and run all unit tests (no SDL required)
+```
+
+Tests live in `test_raycaster.c` and link only against `raycaster.o`. They cover map loading, player movement/collision, DDA raycasting distances, and integration scenarios. Run from the project root (tests load `map.txt`).
 
 ## Controls
 
