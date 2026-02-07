@@ -129,12 +129,17 @@ void rc_update(GameState *gs, const Input *in, float dt)
     if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
         p->y += dy;
 
-    /* ── Exit detection ───────────────────────────────────────────── */
+    /* ── Exit detection (player must reach centre of exit cell) ──── */
     int cx = (int)p->x;
     int cy = (int)p->y;
     if (cx >= 0 && cy >= 0 && cx < m->w && cy < m->h
         && m->cells[cy][cx] == CELL_EXIT) {
-        gs->game_over = true;
+        float centre_x = cx + 0.5f;
+        float centre_y = cy + 0.5f;
+        float ex = p->x - centre_x;
+        float ey = p->y - centre_y;
+        if (ex * ex + ey * ey <= COL_MARGIN * COL_MARGIN)
+            gs->game_over = true;
     }
 }
 

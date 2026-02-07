@@ -406,6 +406,32 @@ static void test_update_exit_triggers_game_over(void)
     assert(gs.game_over);
 }
 
+static void test_update_exit_requires_centre(void)
+{
+    /* Entering the exit cell near its edge should not trigger game_over */
+    GameState gs;
+    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    /* Place exit cell at col 6, centre at (6.5, 5.5) */
+    gs.map.cells[5][6] = CELL_EXIT;
+
+    /* Put player just inside the cell but far from centre */
+    gs.player.x = 6.05f;
+    gs.player.y = 5.5f;
+
+    Input in;
+    memset(&in, 0, sizeof(in));
+
+    rc_update(&gs, &in, 1.0f / 60.0f);
+    assert(!gs.game_over);
+
+    /* Now move to the centre */
+    gs.player.x = 6.5f;
+    gs.player.y = 5.5f;
+    rc_update(&gs, &in, 1.0f / 60.0f);
+    assert(gs.game_over);
+}
+
 static void test_update_no_exit_no_game_over(void)
 {
     /* Walking on normal floor should not set game_over */
@@ -680,6 +706,7 @@ int main(void)
     RUN_TEST(test_update_rotation_right);
     RUN_TEST(test_update_exit_cell_walkable);
     RUN_TEST(test_update_exit_triggers_game_over);
+    RUN_TEST(test_update_exit_requires_centre);
     RUN_TEST(test_update_no_exit_no_game_over);
 
     printf("\n── rc_cast ─────────────────────────────────────────────\n");
