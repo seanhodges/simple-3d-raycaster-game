@@ -199,7 +199,7 @@ void rc_cast(GameState *gs)
             }
             if (map_x < 0 || map_y < 0 || map_x >= m->w || map_y >= m->h) {
                 hit = true;                    /* out of bounds = wall */
-            } else if (m->cells[map_y][map_x] != 0) {
+            } else if (m->cells[map_y][map_x] > 0) {
                 hit = true;
             }
         }
