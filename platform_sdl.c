@@ -8,12 +8,8 @@
 #include "texture.h"
 
 #include <SDL3/SDL.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-/* ── Void colour for exit cells ───────────────────────────────────── */
-#define COL_VOID 0x000000FF      /* black                              */
 
 /* ── Internal state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
@@ -122,10 +118,7 @@ void platform_render(const GameState *gs)
         for (int x = 0; x < SCREEN_W; x++)
             fb[y * fb_stride + x] = COL_FLOOR;
 
-    /* Draw textured wall strips and floor-cast exit cells */
-    const Player *p = &gs->player;
-    const Map    *m = &gs->map;
-
+    /* Draw textured wall strips from the hit buffer */
     for (int x = 0; x < SCREEN_W; x++) {
         float dist = gs->hits[x].wall_dist;
         int line_h = (int)(SCREEN_H / dist);
@@ -159,26 +152,6 @@ void platform_render(const GameState *gs)
             fb[y * fb_stride + x] = col;
         }
 
-        /* ── Floor-cast: paint exit cells as void ─────────────────── */
-        float cam_x  = 2.0f * x / (float)SCREEN_W - 1.0f;
-        float ray_dx = p->dir_x + p->plane_x * cam_x;
-        float ray_dy = p->dir_y + p->plane_y * cam_x;
-
-        int floor_start = draw_end + 1;
-        if (floor_start < SCREEN_H / 2) floor_start = SCREEN_H / 2;
-
-        for (int y = floor_start; y < SCREEN_H; y++) {
-            float row_dist = (SCREEN_H * 0.5f) / (y - SCREEN_H * 0.5f);
-            float fx = p->x + row_dist * ray_dx;
-            float fy = p->y + row_dist * ray_dy;
-            int cx = (int)floorf(fx);
-            int cy = (int)floorf(fy);
-
-            if (cx >= 0 && cy >= 0 && cx < m->w && cy < m->h
-                && m->cells[cy][cx] == CELL_EXIT) {
-                fb[y * fb_stride + x] = COL_VOID;
-            }
-        }
     }
 
     SDL_UnlockTexture(fb_tex);
