@@ -172,18 +172,14 @@ void platform_render(const GameState *gs)
 
 void platform_render_end_screen(const GameState *gs)
 {
-    /* Draw the 3D scene as background (reuse normal render path) */
-    platform_render(gs);
-
-    /* Semi-transparent dark overlay */
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
+    /* Blank the screen */
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_FRect overlay = {0, 0, SCREEN_W, SCREEN_H};
     SDL_RenderFillRect(renderer, &overlay);
 
-    /* Large title text (scale 4×) */
+    /* Title text */
     const char *title = "Congratulations! You found the exit.";
-    float title_scale = 4.0f;
+    float title_scale = 2.0f;
     float char_w = 8.0f * title_scale;
     float title_w = (float)strlen(title) * char_w;
     float title_x = (SCREEN_W - title_w) / 2.0f;
@@ -194,7 +190,7 @@ void platform_render_end_screen(const GameState *gs)
     SDL_RenderDebugText(renderer, title_x / title_scale,
                         title_y / title_scale, title);
 
-    /* Smaller subtitle text (scale 2×) */
+    /* Subtitle text */
     const char *sub = "Press Esc to end the game.";
     float sub_scale = 2.0f;
     float sub_char_w = 8.0f * sub_scale;

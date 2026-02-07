@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     const char *map_path = "map.txt";
     if (argc > 1) map_path = argv[1];
 
-    /* ── Initialise ───────────────────────────────────────────────── */
+    /* Initialise */
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* ── Main loop (fixed timestep with accumulator) ──────────────── */
+    /* Main loop (fixed timestep with accumulator) */
     Input  input;
     memset(&input, 0, sizeof(input));
 
@@ -71,12 +71,11 @@ int main(int argc, char *argv[])
         if (gs.game_over) running = false;
     }
 
-    /* ── End-game screen (if player found exit) ────────────────────── */
+    /* End-game screen */
     if (gs.game_over) {
-        rc_cast(&gs);
+        platform_render_end_screen(&gs);
         bool waiting = true;
         while (waiting) {
-            platform_render_end_screen(&gs);
             waiting = platform_poll_end_input();
         }
     }
