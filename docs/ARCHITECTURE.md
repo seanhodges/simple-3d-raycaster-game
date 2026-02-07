@@ -18,7 +18,7 @@
 
 ## High-Level Overview
 
-This project is a **Wolfenstein 3D-style raycasting engine** — it fakes 3D by casting one ray per screen column from the player's viewpoint, measuring the distance to the nearest wall, and drawing a vertical strip whose height is inversely proportional to that distance. The result is a convincing first-person perspective rendered entirely in 2D math.
+This project is a **3D-style raycasting engine** — it fakes 3D by casting one ray per screen column from the player's viewpoint, measuring the distance to the nearest wall, and drawing a vertical strip whose height is inversely proportional to that distance. The result is a convincing first-person perspective rendered entirely in 2D math.
 
 The design pattern is the **Layered Architecture** (sometimes called Ports & Adapters / Hexagonal at its conceptual root): the core game logic knows nothing about SDL, windows, or pixels. A thin platform layer translates between the engine and the OS.
 
@@ -57,13 +57,11 @@ graph TB
 
 | Technology | Role | Why This Choice |
 |---|---|---|
-| **C (C11)** | Language | Raycasting is a fundamentally low-level algorithm — pointer arithmetic, fixed-size arrays, tight loops. C gives direct control with zero runtime overhead. C11 adds `bool`, `stdbool.h`, and guarantees that make the code cleaner than C89/C99. |
-| **SDL3** | Windowing, input, rendering | The de facto standard for cross-platform multimedia in C. SDL provides a 2D renderer, keyboard state polling, and high-resolution timers — exactly what a raycaster needs, nothing more. SDL3 (not SDL2) is used here for its modernized API. |
-| **GNU Make** | Build system | For a 3-file C project, Make is the right tool. No CMake boilerplate, no generator step. The `Makefile` handles Linux, macOS, and Windows cross-compilation in 54 lines. |
-| **pkg-config** | Dependency discovery | Locates SDL3 headers and libraries portably. Avoids hardcoded paths. |
+| **C (C11)** | Language | Raycasting is a fundamentally low-level algorithm — pointer arithmetic, fixed-size arrays, tight loops. C11 is simple and gives direct control with zero runtime overhead. |
+| **SDL3** | The default frontend for the game; handling windowing, input, rendering | The de facto standard for cross-platform multimedia in C. SDL provides a 2D renderer, keyboard state polling, and high-resolution timers. SDL3 (not SDL2) is used here for its modernized API. |
+| **GNU Make** | Build system | Extremely lightweight for a simple C project. No boilerplate or generator steps, easy to package. Optimised for simple text editors and CLI. The `Makefile` handles Linux, macOS, and Windows cross-compilation. |
+| **pkg-config** | Dependency discovery | Locates headers and libraries portably. Avoids hardcoded paths. |
 | **`-Wall -Wextra -O2`** | Compiler discipline | Maximum warnings catch bugs at compile time. `-O2` ensures the tight raycasting loop runs at full speed even on modest hardware. |
-
-**What's deliberately absent:** No game framework, no entity-component system, no scripting language. This is a teaching codebase — every abstraction earns its place.
 
 ---
 
@@ -71,14 +69,14 @@ graph TB
 
 ### Layer 1: Core Engine (`raycaster.c` / `raycaster.h`)
 
-**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h`, `stdio.h`, and `string.h`. That's it. No SDL headers.
+**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h`, `stdio.h`, and `string.h`. That's it. No SDL or non-standard headers.
 
 Responsibilities:
-- **Map loading** (`rc_load_map`) — parse ASCII map file into the `Map` grid
+- **Map loading** (`rc_load_map`) — parse the ASCII map file into the `Map` grid
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
 - **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer
 
-This separation is the most important architectural decision in the project. It means:
+This separation is an important architectural decision in the project. It means:
 - The core engine can be unit-tested without a display
 - The renderer can be swapped (OpenGL, Vulkan, terminal) without touching game logic
 - The math is portable to any platform with a C compiler
@@ -109,10 +107,14 @@ graph LR
         INIT["Init"] --> LOOP["Game Loop"] --> SHUT["Shutdown"]
     end
 
-    LOOP -->|"poll"| PLAT["platform_sdl"]
-    LOOP -->|"update"| RC["raycaster"]
-    LOOP -->|"cast"| RC
-    LOOP -->|"render"| PLAT
+    subgraph platform_sdl.c
+        LOOP -->|"poll"| PLAT["User Input"]
+        LOOP -->|"render"| PLAT["Draw Viewport"]
+    end
+    subgraph raycaster.c
+        LOOP -->|"update"| RC["Refresh Game State"]
+        LOOP -->|"cast"| RC["Calculate Viewport"]
+    end
 ```
 
 ---
