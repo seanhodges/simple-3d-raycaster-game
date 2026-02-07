@@ -8,9 +8,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PI       3.14159265358979323846f
-#define MOVE_SPD 3.0f   /* map-units / second   */
-#define ROT_SPD  2.5f   /* radians  / second    */
+#define PI         3.14159265358979323846f
+#define MOVE_SPD   3.0f    /* map-units / second                */
+#define ROT_SPD    2.5f    /* radians  / second                 */
+#define COL_MARGIN 0.15f   /* wall collision margin (map units) */
 
 /* ── Map loading ───────────────────────────────────────────────────── */
 
@@ -119,10 +120,9 @@ void rc_update(GameState *gs, const Input *in, float dt)
     }
 
     /* Slide along walls: test each axis independently with margin */
-    float margin = 0.15f;
-    if (!is_wall(m, p->x + dx + (dx > 0 ? margin : -margin), p->y))
+    if (!is_wall(m, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
         p->x += dx;
-    if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? margin : -margin)))
+    if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
         p->y += dy;
 }
 
