@@ -151,6 +151,7 @@ void platform_render(const GameState *gs)
 
             fb[y * fb_stride + x] = col;
         }
+
     }
 
     SDL_UnlockTexture(fb_tex);
