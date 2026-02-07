@@ -167,6 +167,64 @@ void platform_render(const GameState *gs)
     SDL_RenderPresent(renderer);
 }
 
+/* ── End-screen rendering ─────────────────────────────────────────── */
+
+void platform_render_end_screen(const GameState *gs)
+{
+    /* Draw the 3D scene as background (reuse normal render path) */
+    platform_render(gs);
+
+    /* Semi-transparent dark overlay */
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
+    SDL_FRect overlay = {0, 0, SCREEN_W, SCREEN_H};
+    SDL_RenderFillRect(renderer, &overlay);
+
+    /* Large title text (scale 4×) */
+    const char *title = "Congratulations! You found the exit.";
+    float title_scale = 4.0f;
+    float char_w = 8.0f * title_scale;
+    float title_w = (float)strlen(title) * char_w;
+    float title_x = (SCREEN_W - title_w) / 2.0f;
+    float title_y = SCREEN_H / 2.0f - 60.0f;
+
+    SDL_SetRenderScale(renderer, title_scale, title_scale);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 100, 255);
+    SDL_RenderDebugText(renderer, title_x / title_scale,
+                        title_y / title_scale, title);
+
+    /* Smaller subtitle text (scale 2×) */
+    const char *sub = "Press Esc to end the game.";
+    float sub_scale = 2.0f;
+    float sub_char_w = 8.0f * sub_scale;
+    float sub_w = (float)strlen(sub) * sub_char_w;
+    float sub_x = (SCREEN_W - sub_w) / 2.0f;
+    float sub_y = SCREEN_H / 2.0f + 20.0f;
+
+    SDL_SetRenderScale(renderer, sub_scale, sub_scale);
+    SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+    SDL_RenderDebugText(renderer, sub_x / sub_scale,
+                        sub_y / sub_scale, sub);
+
+    /* Reset scale and present */
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    SDL_RenderPresent(renderer);
+}
+
+bool platform_poll_end_input(void)
+{
+    SDL_Event ev;
+    while (SDL_PollEvent(&ev)) {
+        if (ev.type == SDL_EVENT_QUIT)
+            return false;
+        if (ev.type == SDL_EVENT_KEY_DOWN && ev.key.key == SDLK_ESCAPE)
+            return false;
+    }
+    return true;
+}
+
+/* ── Timer ─────────────────────────────────────────────────────────── */
+
 double platform_get_time(void)
 {
     return (double)SDL_GetPerformanceCounter()
