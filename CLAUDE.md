@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A lightweight 3D raycasting engine (Wolfenstein 3D-style) written in C with SDL3. Educational/hobbyist project demonstrating DDA raycasting, fixed-timestep game loops, and clean platform abstraction.
+A lightweight 3D-style raycasting engine written in C with SDL3. Educational/hobbyist project demonstrating DDA raycasting, fixed-timestep game loops, and clean platform abstraction.
 
 ## Build & Run
 
