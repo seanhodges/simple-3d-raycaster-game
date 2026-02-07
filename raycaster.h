@@ -13,8 +13,8 @@
 #define MAP_MAX_H 64
 
 /* ── Colours (RGBA8888) ────────────────────────────────────────────── */
-#define COL_CEIL  0xFFFFFFFF   /* white   */
-#define COL_FLOOR 0xFFFFFFFF   /* white   */
+#define COL_CEIL  0xAAAAAAFF   /* white */
+#define COL_FLOOR 0x66666666   /* grey */
 #define COL_WALL  0x00008BFF   /* dk blue */
 #define COL_WALL_SHADE 0x000068FF /* slightly darker for y-side hits */
 
