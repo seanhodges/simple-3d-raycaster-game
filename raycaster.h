@@ -16,6 +16,10 @@
 #define TEX_SIZE  64             /* width & height of one texture tile */
 #define TEX_COUNT 10             /* number of textures in the atlas    */
 
+/* ── Special cell values ──────────────────────────────────────────── */
+#define CELL_FLOOR  0            /* empty floor                        */
+#define CELL_EXIT  -1            /* exit trigger (walkable floor)      */
+
 /* ── Colours (RGBA8888) ────────────────────────────────────────────── */
 #define COL_CEIL  0xAAAAAAFF   /* white */
 #define COL_FLOOR 0x66666666   /* grey */
@@ -48,6 +52,7 @@ typedef struct GameState {
     Map     map;
     Player  player;
     RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
+    bool    game_over;        /* true when player reaches exit cell   */
 } GameState;
 
 /* ── Input flags (set by platform layer) ───────────────────────────── */

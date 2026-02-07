@@ -43,12 +43,14 @@ bool rc_load_map(GameState *gs, const char *path)
             } else if (c >= '0' && c <= '9') {
                 gs->map.cells[row][col] = (c - '0') + 1; /* wall, type N */
             } else if (c == 'P' || c == 'p') {
-                gs->map.cells[row][col] = 0;           /* floor */
+                gs->map.cells[row][col] = CELL_FLOOR;  /* floor */
                 gs->player.x = col + 0.5f;
                 gs->player.y = row + 0.5f;
                 player_set = true;
+            } else if (c == 'F' || c == 'f') {
+                gs->map.cells[row][col] = CELL_EXIT;   /* exit trigger */
             } else {
-                gs->map.cells[row][col] = 0;           /* empty */
+                gs->map.cells[row][col] = CELL_FLOOR;  /* empty */
             }
         }
         row++;
@@ -78,7 +80,7 @@ static bool is_wall(const Map *m, float x, float y)
     int mx = (int)x;
     int my = (int)y;
     if (mx < 0 || my < 0 || mx >= m->w || my >= m->h) return true;
-    return m->cells[my][mx] != 0;
+    return m->cells[my][mx] > 0;
 }
 
 void rc_update(GameState *gs, const Input *in, float dt)
@@ -126,6 +128,14 @@ void rc_update(GameState *gs, const Input *in, float dt)
         p->x += dx;
     if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
         p->y += dy;
+
+    /* ── Exit detection ───────────────────────────────────────────── */
+    int cx = (int)p->x;
+    int cy = (int)p->y;
+    if (cx >= 0 && cy >= 0 && cx < m->w && cy < m->h
+        && m->cells[cy][cx] == CELL_EXIT) {
+        gs->game_over = true;
+    }
 }
 
 /* ── DDA Raycasting ────────────────────────────────────────────────── */

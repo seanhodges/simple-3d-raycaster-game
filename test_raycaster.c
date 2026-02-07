@@ -176,6 +176,41 @@ static void test_load_map_x_hash_type(void)
     remove("test_xhash_map.txt");
 }
 
+static void test_load_map_exit_cell(void)
+{
+    /* Verify F is parsed as CELL_EXIT */
+    FILE *fp = fopen("test_exit_map.txt", "w");
+    assert(fp);
+    fprintf(fp, "XXXXX\n");
+    fprintf(fp, "XP FX\n");
+    fprintf(fp, "XXXXX\n");
+    fclose(fp);
+
+    GameState gs;
+    memset(&gs, 0, sizeof(gs));
+    bool ok = rc_load_map(&gs, "test_exit_map.txt");
+    assert(ok);
+
+    /* 'F' at row 1, col 3 should be CELL_EXIT */
+    assert(gs.map.cells[1][3] == CELL_EXIT);
+    /* Space at row 1, col 2 should be floor */
+    assert(gs.map.cells[1][2] == CELL_FLOOR);
+
+    remove("test_exit_map.txt");
+}
+
+static void test_load_map_exit_cell_in_real_map(void)
+{
+    /* Verify the real map.txt has an exit cell */
+    GameState gs;
+    memset(&gs, 0, sizeof(gs));
+    bool ok = rc_load_map(&gs, "map.txt");
+    assert(ok);
+
+    /* Exit cell at row 15, col 14 */
+    assert(gs.map.cells[15][14] == CELL_EXIT);
+}
+
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  rc_update tests                                                   */
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -323,6 +358,68 @@ static void test_update_rotation_right(void)
     float len = sqrtf(gs.player.dir_x * gs.player.dir_x +
                       gs.player.dir_y * gs.player.dir_y);
     ASSERT_NEAR(len, 1.0f, 0.001f);
+}
+
+static void test_update_exit_cell_walkable(void)
+{
+    /* Exit cell should be walkable (not treated as wall) */
+    GameState gs;
+    init_box_map(&gs, 10, 10, 3.5f, 5.5f, 1.0f, 0.0f);
+
+    /* Place an exit cell ahead of the player */
+    gs.map.cells[5][5] = CELL_EXIT;
+
+    Input in;
+    memset(&in, 0, sizeof(in));
+    in.forward = true;
+
+    float old_x = gs.player.x;
+    for (int i = 0; i < 60; i++)
+        rc_update(&gs, &in, 1.0f / 60.0f);
+
+    /* Player should have moved past the exit cell (not blocked) */
+    assert(gs.player.x > 5.0f);
+    (void)old_x;
+}
+
+static void test_update_exit_triggers_game_over(void)
+{
+    /* Walking onto an exit cell should set game_over */
+    GameState gs;
+    init_box_map(&gs, 10, 10, 4.5f, 5.5f, 1.0f, 0.0f);
+
+    /* Place exit cell at col 5 */
+    gs.map.cells[5][5] = CELL_EXIT;
+
+    assert(!gs.game_over);
+
+    Input in;
+    memset(&in, 0, sizeof(in));
+    in.forward = true;
+
+    /* Walk forward until we reach the exit cell */
+    for (int i = 0; i < 60; i++) {
+        rc_update(&gs, &in, 1.0f / 60.0f);
+        if (gs.game_over) break;
+    }
+
+    assert(gs.game_over);
+}
+
+static void test_update_no_exit_no_game_over(void)
+{
+    /* Walking on normal floor should not set game_over */
+    GameState gs;
+    init_box_map(&gs, 20, 20, 5.5f, 10.5f, 1.0f, 0.0f);
+
+    Input in;
+    memset(&in, 0, sizeof(in));
+    in.forward = true;
+
+    for (int i = 0; i < 60; i++)
+        rc_update(&gs, &in, 1.0f / 60.0f);
+
+    assert(!gs.game_over);
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -569,6 +666,8 @@ int main(void)
     RUN_TEST(test_load_map_walls_parsed);
     RUN_TEST(test_load_map_digit_walls);
     RUN_TEST(test_load_map_x_hash_type);
+    RUN_TEST(test_load_map_exit_cell);
+    RUN_TEST(test_load_map_exit_cell_in_real_map);
 
     printf("\n── rc_update ───────────────────────────────────────────\n");
     RUN_TEST(test_update_no_input);
@@ -579,6 +678,9 @@ int main(void)
     RUN_TEST(test_update_wall_sliding);
     RUN_TEST(test_update_rotation_left);
     RUN_TEST(test_update_rotation_right);
+    RUN_TEST(test_update_exit_cell_walkable);
+    RUN_TEST(test_update_exit_triggers_game_over);
+    RUN_TEST(test_update_no_exit_no_game_over);
 
     printf("\n── rc_cast ─────────────────────────────────────────────\n");
     RUN_TEST(test_cast_straight_east);

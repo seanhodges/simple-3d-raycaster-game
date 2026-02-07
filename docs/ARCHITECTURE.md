@@ -319,9 +319,10 @@ XXXX  XXXX  XXXX
 | `X` or `#` | Wall (texture 0) | `1` |
 | `0`–`9` | Wall (texture N) | `N + 1` |
 | `P` or `p` | Player spawn (floor) | `0` |
+| `F` or `f` | Exit trigger (floor) | `-1` (`CELL_EXIT`) |
 | ` ` (space) | Empty floor | `0` |
 
-Cell values encode both wall presence and texture type: `0` = floor, `>= 1` = wall with `wall_type = cell - 1`. This allows `is_wall()` to check `!= 0` while preserving the texture index.
+Cell values encode wall presence, texture type, and special floor types: `0` = floor, `>= 1` = wall with `wall_type = cell - 1`, `< 0` = special floor (e.g. `CELL_EXIT`). `is_wall()` checks `> 0` so negative values are walkable. When the player steps on a `CELL_EXIT` cell, `game_over` is set to `true` and the game displays a congratulations screen.
 
 Constraints:
 - Maximum size: 64×64 (`MAP_MAX_W` / `MAP_MAX_H`)

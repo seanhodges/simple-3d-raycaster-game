@@ -66,6 +66,19 @@ int main(int argc, char *argv[])
         /* Render at display rate */
         rc_cast(&gs);
         platform_render(&gs);
+
+        /* Player reached the exit cell */
+        if (gs.game_over) running = false;
+    }
+
+    /* ── End-game screen (if player found exit) ────────────────────── */
+    if (gs.game_over) {
+        rc_cast(&gs);
+        bool waiting = true;
+        while (waiting) {
+            platform_render_end_screen(&gs);
+            waiting = platform_poll_end_input();
+        }
     }
 
     tm_shutdown();
