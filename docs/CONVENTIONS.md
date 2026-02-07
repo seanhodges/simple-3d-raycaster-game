@@ -281,38 +281,51 @@ This is a deliberate design choice:
 
 ## Testing Patterns
 
-### Current State: Manual Testing Only
+### Running Tests
 
-There are no automated tests. Validation is done by running the game and visually checking behavior.
-
-### Testability by Design
-
-The architecture is deliberately test-friendly:
-- `raycaster.c` has no SDL dependency — it can be linked into a test harness
-- All state flows through `GameState` — easy to set up test fixtures
-- `rc_cast` produces a `RayHit[]` buffer — easy to assert against expected distances
-
-### Recommended Test Strategy (if tests are added)
-
-```c
-// Example: test that a ray looking straight at a wall 3 cells away
-// reports approximately distance 2.5
-GameState gs;
-memset(&gs, 0, sizeof(gs));
-gs.map.w = 5; gs.map.h = 1;
-gs.map.cells[0][0] = 0;  // floor
-gs.map.cells[0][4] = 1;  // wall
-gs.player.x = 0.5f;
-gs.player.y = 0.5f;
-gs.player.dir_x = 1.0f;
-gs.player.dir_y = 0.0f;
-// ... set up camera plane ...
-
-rc_cast(&gs);
-assert(fabsf(gs.hits[SCREEN_W/2].wall_dist - 3.5f) < 0.1f);
+```bash
+make test        # Build and run all tests (no SDL required)
 ```
 
-A minimal `test_raycaster.c` that links only `raycaster.o` and runs assertions would fit the project's philosophy.
+Tests live in `test_raycaster.c` and link only against `raycaster.o` — no SDL dependency. The test binary runs `map.txt`-dependent tests from the project root, so always run from there.
+
+### Test Architecture
+
+The tests use a **minimal custom harness** — no external test framework. The harness provides:
+- `RUN_TEST(fn)` — runs a void function, prints pass/fail, increments counters
+- `ASSERT_NEAR(a, b, eps)` — floating-point comparison with epsilon tolerance
+- Standard `assert()` for boolean conditions
+
+Exit code is `0` on all-pass, `1` on any failure — compatible with CI.
+
+### What's Covered (20 tests)
+
+| Category | Tests | What's Verified |
+|---|---|---|
+| **rc_load_map** | 3 | Map dimensions, wall parsing, player spawn position, missing file rejection, boundary walls |
+| **rc_update** | 8 | No-input stability, forward/backward movement at correct speed, strafing direction, wall collision blocking, wall sliding, rotation preserving unit vector length |
+| **rc_cast** | 7 | Straight-axis distances (east, north), close-wall accuracy, all-columns-filled invariant, left-right symmetry, side detection (x-side vs y-side) |
+| **Integration** | 2 | Load-then-cast with real map file, walk-then-cast distance decrease |
+
+### Test Fixture Pattern
+
+Tests build game state programmatically using `init_box_map()` — a helper that creates a walled box of any size with the player at a specified position and direction. The camera plane is auto-derived from `FOV_DEG`:
+
+```c
+static void init_box_map(GameState *gs, int w, int h,
+                         float px, float py,
+                         float dir_x, float dir_y)
+```
+
+This avoids depending on `map.txt` for most tests. Only `test_load_map_*` and `test_load_then_cast` use the real map file.
+
+### Writing New Tests
+
+1. Add a `static void test_your_name(void)` function in the appropriate section
+2. Use `init_box_map()` for geometry setup, or `rc_load_map()` for file-based tests
+3. Use `ASSERT_NEAR()` for distance comparisons (raycasting has float imprecision)
+4. Add `RUN_TEST(test_your_name);` to `main()`
+5. Run `make test` — zero warnings required, zero failures expected
 
 ---
 

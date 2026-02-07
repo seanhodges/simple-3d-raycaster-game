@@ -39,6 +39,20 @@ ifneq (,$(findstring MINGW,$(OS)))
   LDFLAGS += -lSDL3 -lm
 endif
 
+# ── Test (no SDL dependency) ──────────────────────────────────────────
+TEST_TARGET = test_raycaster
+TEST_SRCS   = test_raycaster.c raycaster.c
+TEST_OBJS   = $(TEST_SRCS:.c=.o)
+
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
+$(TEST_TARGET): test_raycaster.o raycaster.o
+	$(CC) $(CFLAGS) -o $@ $^ -lm
+
+test_raycaster.o: test_raycaster.c raycaster.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # ── Rules ─────────────────────────────────────────────────────────────
 all: $(TARGET)
 
@@ -49,6 +63,6 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	$(RM) $(OBJS) $(TARGET) raycaster.exe
+	$(RM) $(OBJS) $(TEST_OBJS) $(TARGET) $(TEST_TARGET) raycaster.exe
 
-.PHONY: all clean
+.PHONY: all test clean
