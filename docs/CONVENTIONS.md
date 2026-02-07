@@ -26,6 +26,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 |---|---|---|
 | `rc_` | Core raycasting engine | `rc_load_map`, `rc_update`, `rc_cast` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
+| `tm_` | Texture manager | `tm_init`, `tm_shutdown`, `tm_get_pixel` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c), `rgba` (static in platform_sdl.c) |
 
 **Rule:** Every public function must carry its layer prefix. Static (file-private) helper functions do not need a prefix.
@@ -406,7 +407,7 @@ Constants used by only one file are `#define`d in that `.c` file, not in a heade
 
 | Location | Examples | Why |
 |---|---|---|
-| `raycaster.h` | `SCREEN_W`, `FOV_DEG`, `COL_WALL` | Used by both core and platform |
+| `raycaster.h` | `SCREEN_W`, `FOV_DEG`, `COL_WALL`, `TEX_SIZE`, `TEX_COUNT` | Used by both core and platform |
 | `raycaster.c` | `PI`, `MOVE_SPD`, `ROT_SPD`, `COL_MARGIN` | Implementation detail of the core |
 | `main.c` | `TICK_RATE`, `DT`, `MAX_FRAME` | Implementation detail of the game loop |
 

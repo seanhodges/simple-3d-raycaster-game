@@ -8,7 +8,7 @@
 # ──────────────────────────────────────────────────────────────────────
 
 TARGET   = raycaster
-SRCS     = main.c raycaster.c platform_sdl.c
+SRCS     = main.c raycaster.c platform_sdl.c texture.c
 OBJS     = $(SRCS:.c=.o)
 
 CC       ?= gcc
@@ -59,10 +59,10 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c raycaster.h platform_sdl.h
+%.o: %.c raycaster.h platform_sdl.h texture.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	$(RM) $(OBJS) $(TEST_OBJS) $(TARGET) $(TEST_TARGET) raycaster.exe
+	$(RM) $(OBJS) $(TEST_OBJS) $(TARGET) $(TEST_TARGET) raycaster.exe texture.o
 
 .PHONY: all test clean

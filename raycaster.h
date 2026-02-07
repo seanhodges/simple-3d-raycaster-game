@@ -12,6 +12,10 @@
 #define MAP_MAX_W 64
 #define MAP_MAX_H 64
 
+/* ── Texture constants ────────────────────────────────────────────── */
+#define TEX_SIZE  64             /* width & height of one texture tile */
+#define TEX_COUNT 10             /* number of textures in the atlas    */
+
 /* ── Colours (RGBA8888) ────────────────────────────────────────────── */
 #define COL_CEIL  0xAAAAAAFF   /* white */
 #define COL_FLOOR 0x66666666   /* grey */
@@ -21,8 +25,9 @@
 /* ── Per-column ray result ─────────────────────────────────────────── */
 typedef struct RayHit {
     float wall_dist;     /* perpendicular distance to wall          */
+    float wall_x;        /* where on the wall face the ray hit 0-1  */
     int   side;          /* 0 = x-side hit, 1 = y-side hit          */
-    int   wall_type;     /* tile value (for future multi-colour)     */
+    int   wall_type;     /* texture index (0 .. TEX_COUNT-1)        */
 } RayHit;
 
 /* ── Player state ──────────────────────────────────────────────────── */

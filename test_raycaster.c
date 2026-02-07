@@ -121,6 +121,61 @@ static void test_load_map_walls_parsed(void)
     assert(gs.map.cells[1][1] == 0);
 }
 
+static void test_load_map_digit_walls(void)
+{
+    /* Write a temporary map with digit walls */
+    FILE *fp = fopen("test_digit_map.txt", "w");
+    assert(fp);
+    fprintf(fp, "012\n");
+    fprintf(fp, "3P4\n");
+    fprintf(fp, "567\n");
+    fclose(fp);
+
+    GameState gs;
+    memset(&gs, 0, sizeof(gs));
+    bool ok = rc_load_map(&gs, "test_digit_map.txt");
+    assert(ok);
+
+    /* Digit '0' → cell = 1 (wall_type 0) */
+    assert(gs.map.cells[0][0] == 1);
+    /* Digit '1' → cell = 2 (wall_type 1) */
+    assert(gs.map.cells[0][1] == 2);
+    /* Digit '2' → cell = 3 (wall_type 2) */
+    assert(gs.map.cells[0][2] == 3);
+    /* Digit '3' → cell = 4 (wall_type 3) */
+    assert(gs.map.cells[1][0] == 4);
+    /* 'P' → floor */
+    assert(gs.map.cells[1][1] == 0);
+    /* Digit '5' → cell = 6 (wall_type 5) */
+    assert(gs.map.cells[2][0] == 6);
+    /* Digit '9' is not in this map, but '7' → cell = 8 */
+    assert(gs.map.cells[2][2] == 8);
+
+    remove("test_digit_map.txt");
+}
+
+static void test_load_map_x_hash_type(void)
+{
+    /* Verify X and # both produce cell=1 (wall_type 0) */
+    FILE *fp = fopen("test_xhash_map.txt", "w");
+    assert(fp);
+    fprintf(fp, "X#X\n");
+    fprintf(fp, "#P#\n");
+    fprintf(fp, "X#X\n");
+    fclose(fp);
+
+    GameState gs;
+    memset(&gs, 0, sizeof(gs));
+    bool ok = rc_load_map(&gs, "test_xhash_map.txt");
+    assert(ok);
+
+    /* Both X and # should produce cell value 1 */
+    assert(gs.map.cells[0][0] == 1);
+    assert(gs.map.cells[0][1] == 1);
+
+    remove("test_xhash_map.txt");
+}
+
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  rc_update tests                                                   */
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -325,7 +380,7 @@ static void test_cast_all_columns_filled(void)
     /* Every column should have a positive wall distance */
     for (int x = 0; x < SCREEN_W; x++) {
         assert(gs.hits[x].wall_dist > 0.0f);
-        assert(gs.hits[x].wall_type == 1);
+        assert(gs.hits[x].wall_type == 0);   /* init_box_map uses cell=1 → type 0 */
     }
 }
 
@@ -364,6 +419,74 @@ static void test_cast_edge_distances_longer(void)
     assert(mid_dist > 0.0f);
     assert(gs.hits[0].wall_dist > 0.0f);
     assert(gs.hits[SCREEN_W - 1].wall_dist > 0.0f);
+}
+
+static void test_cast_wall_x_range(void)
+{
+    GameState gs;
+    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs);
+
+    /* wall_x should be in [0.0, 1.0) for all columns */
+    for (int x = 0; x < SCREEN_W; x++) {
+        assert(gs.hits[x].wall_x >= 0.0f);
+        assert(gs.hits[x].wall_x < 1.0f);
+    }
+}
+
+static void test_cast_wall_x_centre(void)
+{
+    GameState gs;
+    /* Player at (2.5, 5.5) facing east in a 10×10 box.
+     * Centre ray hits the east wall at x=9, y should be near 5.5.
+     * wall_x = frac(5.5) = 0.5 for a y-side? No — facing east hits
+     * x-side wall, so wall_x = frac(player.y + perp * ray_dy).
+     * Centre ray: ray_dy ≈ 0, so wall_x ≈ frac(5.5) = 0.5 */
+    init_box_map(&gs, 10, 10, 2.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs);
+
+    int mid = SCREEN_W / 2;
+    ASSERT_NEAR(gs.hits[mid].wall_x, 0.5f, 0.05f);
+}
+
+static void test_cast_digit_wall_type(void)
+{
+    /* Build a map where the east wall is cell value 6 (wall_type 5) */
+    GameState gs;
+    memset(&gs, 0, sizeof(gs));
+    gs.map.w = 10;
+    gs.map.h = 10;
+
+    for (int r = 0; r < 10; r++)
+        for (int c = 0; c < 10; c++)
+            gs.map.cells[r][c] = 0;
+
+    /* Border walls: left/top/bottom = type 0, right = type 5 */
+    for (int r = 0; r < 10; r++) {
+        gs.map.cells[r][0] = 1;      /* type 0 */
+        gs.map.cells[r][9] = 6;      /* type 5 */
+    }
+    for (int c = 0; c < 10; c++) {
+        gs.map.cells[0][c] = 1;
+        gs.map.cells[9][c] = 1;
+    }
+
+    /* Player facing east, will hit the right wall (type 5) */
+    gs.player.x = 5.5f;
+    gs.player.y = 5.5f;
+    gs.player.dir_x = 1.0f;
+    gs.player.dir_y = 0.0f;
+    float half_fov = (FOV_DEG * 0.5f) * (PI / 180.0f);
+    gs.player.plane_x = 0.0f;
+    gs.player.plane_y = tanf(half_fov);
+
+    rc_cast(&gs);
+
+    /* Centre column should hit the east wall (type 5) */
+    int mid = SCREEN_W / 2;
+    assert(gs.hits[mid].wall_type == 5);
 }
 
 static void test_cast_side_shading(void)
@@ -444,6 +567,8 @@ int main(void)
     RUN_TEST(test_load_map_basic);
     RUN_TEST(test_load_map_missing_file);
     RUN_TEST(test_load_map_walls_parsed);
+    RUN_TEST(test_load_map_digit_walls);
+    RUN_TEST(test_load_map_x_hash_type);
 
     printf("\n── rc_update ───────────────────────────────────────────\n");
     RUN_TEST(test_update_no_input);
@@ -462,6 +587,9 @@ int main(void)
     RUN_TEST(test_cast_all_columns_filled);
     RUN_TEST(test_cast_symmetry);
     RUN_TEST(test_cast_edge_distances_longer);
+    RUN_TEST(test_cast_wall_x_range);
+    RUN_TEST(test_cast_wall_x_centre);
+    RUN_TEST(test_cast_digit_wall_type);
     RUN_TEST(test_cast_side_shading);
 
     printf("\n── Integration ─────────────────────────────────────────\n");
