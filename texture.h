@@ -4,9 +4,9 @@
 #include "raycaster.h"
 #include <stdbool.h>
 
-/**  Load texture atlas from a BMP file. Falls back to procedural
- *   textures if the file cannot be loaded. Returns false only on
- *   unrecoverable error. */
+/**  Load texture atlas from a BMP file. Falls back to a solid wall
+ *   colour (COL_WALL) if the file cannot be loaded. Returns false
+ *   only on unrecoverable error. */
 bool tm_init(const char *atlas_path);
 
 /**  Free texture memory. */

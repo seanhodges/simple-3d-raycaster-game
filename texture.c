@@ -1,7 +1,7 @@
 /*  texture.c  –  texture atlas manager
  *  ────────────────────────────────────
  *  Loads a horizontal strip of TEX_COUNT square textures from a BMP
- *  file.  Falls back to procedural textures if the file is missing.
+ *  file.  Falls back to a solid wall colour if the file is missing.
  */
 #include "texture.h"
 #include "raycaster.h"
@@ -14,59 +14,15 @@
 
 static unsigned int pixels[TEX_COUNT * TEX_SIZE * TEX_SIZE];
 static bool initialised = false;
+static bool atlas_loaded = false;  /* true only when BMP loaded OK */
 
-/* ── Procedural fallback ──────────────────────────────────────────── */
+/* ── Solid-colour fallback ────────────────────────────────────────── */
 
-static unsigned int pack_rgba(int r, int g, int b)
+static void fill_solid(void)
 {
-    return ((unsigned int)r << 24)
-         | ((unsigned int)g << 16)
-         | ((unsigned int)b <<  8)
-         | 0xFF;
-}
-
-static void generate_procedural(void)
-{
-    /* Base colours for each wall type (R, G, B) */
-    static const int base[TEX_COUNT][3] = {
-        { 139,  69,  19 },   /* 0: brown brick   */
-        { 128, 128, 128 },   /* 1: grey stone     */
-        {  34, 139,  34 },   /* 2: green moss     */
-        { 178,  34,  34 },   /* 3: red brick      */
-        {  70, 130, 180 },   /* 4: steel blue     */
-        { 210, 180, 140 },   /* 5: tan sandstone  */
-        { 106,  90, 205 },   /* 6: slate purple   */
-        { 218, 165,  32 },   /* 7: goldenrod      */
-        {  47,  79,  79 },   /* 8: dark teal      */
-        { 160,  82,  45 },   /* 9: sienna         */
-    };
-
-    for (int t = 0; t < TEX_COUNT; t++) {
-        int br = base[t][0], bg = base[t][1], bb = base[t][2];
-
-        for (int y = 0; y < TEX_SIZE; y++) {
-            for (int x = 0; x < TEX_SIZE; x++) {
-                int idx = t * TEX_SIZE * TEX_SIZE + y * TEX_SIZE + x;
-
-                /* Checkerboard pattern with slight variation */
-                int checker = ((x / 8) + (y / 8)) & 1;
-                float shade = checker ? 1.0f : 0.75f;
-
-                /* Mortar lines for brick-like appearance */
-                bool mortar = (x % 16 == 0) || (y % 16 == 0);
-                if (mortar) shade *= 0.6f;
-
-                int r = (int)(br * shade);
-                int g = (int)(bg * shade);
-                int b = (int)(bb * shade);
-                if (r > 255) r = 255;
-                if (g > 255) g = 255;
-                if (b > 255) b = 255;
-
-                pixels[idx] = pack_rgba(r, g, b);
-            }
-        }
-    }
+    int total = TEX_COUNT * TEX_SIZE * TEX_SIZE;
+    for (int i = 0; i < total; i++)
+        pixels[i] = COL_WALL;
 }
 
 /* ── Public API ───────────────────────────────────────────────────── */
@@ -74,12 +30,13 @@ static void generate_procedural(void)
 bool tm_init(const char *atlas_path)
 {
     memset(pixels, 0, sizeof(pixels));
+    atlas_loaded = false;
 
     SDL_Surface *surf = SDL_LoadBMP(atlas_path);
     if (!surf) {
-        fprintf(stderr, "tm_init: cannot load '%s': %s – using procedural textures\n",
+        fprintf(stderr, "tm_init: cannot load '%s': %s – using solid colour\n",
                 atlas_path, SDL_GetError());
-        generate_procedural();
+        fill_solid();
         initialised = true;
         return true;
     }
@@ -88,9 +45,9 @@ bool tm_init(const char *atlas_path)
     SDL_Surface *conv = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA8888);
     SDL_DestroySurface(surf);
     if (!conv) {
-        fprintf(stderr, "tm_init: surface conversion failed: %s – using procedural textures\n",
+        fprintf(stderr, "tm_init: surface conversion failed: %s – using solid colour\n",
                 SDL_GetError());
-        generate_procedural();
+        fill_solid();
         initialised = true;
         return true;
     }
@@ -100,10 +57,10 @@ bool tm_init(const char *atlas_path)
      * Expected atlas width = TEX_COUNT * TEX_SIZE, height = TEX_SIZE. */
     int expected_w = TEX_COUNT * TEX_SIZE;
     if (conv->w < expected_w || conv->h < TEX_SIZE) {
-        fprintf(stderr, "tm_init: atlas too small (%dx%d, need %dx%d) – using procedural textures\n",
+        fprintf(stderr, "tm_init: atlas too small (%dx%d, need %dx%d) – using solid colour\n",
                 conv->w, conv->h, expected_w, TEX_SIZE);
         SDL_DestroySurface(conv);
-        generate_procedural();
+        fill_solid();
         initialised = true;
         return true;
     }
@@ -122,6 +79,7 @@ bool tm_init(const char *atlas_path)
     }
 
     SDL_DestroySurface(conv);
+    atlas_loaded = true;
     initialised = true;
     return true;
 }
@@ -133,7 +91,7 @@ void tm_shutdown(void)
 
 unsigned int tm_get_pixel(int wall_type, int tex_x, int tex_y)
 {
-    if (!initialised) return 0x000000FF;
+    if (!initialised || !atlas_loaded) return COL_WALL;
 
     /* Clamp inputs */
     if (wall_type < 0)          wall_type = 0;

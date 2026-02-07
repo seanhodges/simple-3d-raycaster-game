@@ -106,7 +106,7 @@ The platform layer **reads from** the core but never writes to it, except throug
 Responsibilities:
 - Load a horizontal texture atlas (BMP) containing `TEX_COUNT` (10) square textures of `TEX_SIZE` (64) pixels each
 - Provide `tm_get_pixel(wall_type, tex_x, tex_y)` for colour sampling
-- Generate procedural fallback textures if the BMP file is missing
+- Fall back to a solid wall colour (`COL_WALL`) if the BMP file is missing
 
 The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
 
