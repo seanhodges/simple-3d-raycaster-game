@@ -1,3 +1,4 @@
 **/*.o
 raycaster
 test_raycaster
+test_map_loader

@@ -6,72 +6,10 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <string.h>
 
-#define PI         3.14159265358979323846f
 #define MOVE_SPD   3.0f    /* map-units / second                */
 #define ROT_SPD    2.5f    /* radians  / second                 */
 #define COL_MARGIN 0.15f   /* wall collision margin (map units) */
-
-/* ── Map loading ───────────────────────────────────────────────────── */
-
-bool rc_load_map(GameState *gs, const char *path)
-{
-    FILE *fp = fopen(path, "r");
-    if (!fp) {
-        fprintf(stderr, "rc_load_map: cannot open '%s'\n", path);
-        return false;
-    }
-
-    memset(&gs->map, 0, sizeof(gs->map));
-
-    char line[MAP_MAX_W + 2];          /* +newline +NUL */
-    int  row = 0;
-    bool player_set = false;
-
-    while (fgets(line, sizeof(line), fp) && row < MAP_MAX_H) {
-        int len = (int)strlen(line);
-        if (len > 0 && line[len - 1] == '\n') line[--len] = '\0';
-        if (len > 0 && line[len - 1] == '\r') line[--len] = '\0';
-
-        if (len > gs->map.w) gs->map.w = len;
-
-        for (int col = 0; col < len; col++) {
-            char c = line[col];
-            if (c == 'X' || c == '#') {
-                gs->map.cells[row][col] = 1;          /* wall, type 0 */
-            } else if (c >= '0' && c <= '9') {
-                gs->map.cells[row][col] = (c - '0') + 1; /* wall, type N */
-            } else if (c == 'P' || c == 'p') {
-                gs->map.cells[row][col] = CELL_FLOOR;  /* floor */
-                gs->player.x = col + 0.5f;
-                gs->player.y = row + 0.5f;
-                player_set = true;
-            } else if (c == 'F' || c == 'f') {
-                gs->map.cells[row][col] = CELL_EXIT;   /* exit trigger */
-            } else {
-                gs->map.cells[row][col] = CELL_FLOOR;  /* empty */
-            }
-        }
-        row++;
-    }
-    gs->map.h = row;
-    fclose(fp);
-
-    if (!player_set) {
-        fprintf(stderr, "rc_load_map: no player start ('P') found\n");
-        return false;
-    }
-
-    /* Default facing direction: east, with FOV-derived camera plane */
-    float half_fov = (FOV_DEG * 0.5f) * (PI / 180.0f);
-    gs->player.dir_x   =  1.0f;
-    gs->player.dir_y   =  0.0f;
-    gs->player.plane_x  =  0.0f;
-    gs->player.plane_y  =  tanf(half_fov);
-
-    return true;
-}
 
 /* ── Player movement / rotation ────────────────────────────────────── */
 
@@ -83,10 +21,9 @@ static bool is_wall(const Map *m, float x, float y)
     return m->cells[my][mx] > 0;
 }
 
-void rc_update(GameState *gs, const Input *in, float dt)
+void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
 {
     Player *p = &gs->player;
-    const Map *m = &gs->map;
 
     /* ── Rotation ─────────────────────────────────────────────────── */
     float rot = 0.0f;
@@ -116,16 +53,16 @@ void rc_update(GameState *gs, const Input *in, float dt)
     }
 
     /* Slide along walls: test each axis independently with margin */
-    if (!is_wall(m, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
+    if (!is_wall(map, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
         p->x += dx;
-    if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
+    if (!is_wall(map, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
         p->y += dy;
 
     /* ── Exit detection (player must reach centre of exit cell) ──── */
     int cx = (int)p->x;
     int cy = (int)p->y;
-    if (cx >= 0 && cy >= 0 && cx < m->w && cy < m->h
-        && m->cells[cy][cx] == CELL_EXIT) {
+    if (cx >= 0 && cy >= 0 && cx < map->w && cy < map->h
+        && map->cells[cy][cx] == CELL_EXIT) {
         float centre_x = cx + 0.5f;
         float centre_y = cy + 0.5f;
         float ex = p->x - centre_x;
@@ -137,10 +74,9 @@ void rc_update(GameState *gs, const Input *in, float dt)
 
 /* ── DDA Raycasting ────────────────────────────────────────────────── */
 
-void rc_cast(GameState *gs)
+void rc_cast(GameState *gs, const Map *map)
 {
     const Player *p = &gs->player;
-    const Map    *m = &gs->map;
 
     for (int x = 0; x < SCREEN_W; x++) {
         /* Camera-space x: -1 (left) to +1 (right) */
@@ -189,9 +125,9 @@ void rc_cast(GameState *gs)
                 map_y   += step_y;
                 side = 1;
             }
-            if (map_x < 0 || map_y < 0 || map_x >= m->w || map_y >= m->h) {
+            if (map_x < 0 || map_y < 0 || map_x >= map->w || map_y >= map->h) {
                 hit = true;                    /* out of bounds = wall */
-            } else if (m->cells[map_y][map_x] > 0) {
+            } else if (map->cells[map_y][map_x] > 0) {
                 hit = true;
             }
         }
@@ -215,8 +151,8 @@ void rc_cast(GameState *gs)
 
         /* Extract wall_type from cell value (cell = wall_type + 1) */
         int cell = 0;
-        if (map_x >= 0 && map_y >= 0 && map_x < m->w && map_y < m->h)
-            cell = m->cells[map_y][map_x];
+        if (map_x >= 0 && map_y >= 0 && map_x < map->w && map_y < map->h)
+            cell = map->cells[map_y][map_x];
 
         gs->hits[x].wall_dist = perp;
         gs->hits[x].wall_x    = wall_x;

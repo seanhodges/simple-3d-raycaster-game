@@ -4,11 +4,12 @@
 #  Usage:
 #    make              Build for the current platform (Linux / macOS)
 #    make OS=windows   Cross-compile with MinGW
+#    make test         Build and run all unit tests
 #    make clean        Remove build artefacts
 # ──────────────────────────────────────────────────────────────────────
 
 TARGET   = raycaster
-SRCS     = main.c raycaster.c platform_sdl.c texture.c
+SRCS     = main.c raycaster.c map_manager.c platform_sdl.c texture.c
 OBJS     = $(SRCS:.c=.o)
 
 CC       ?= gcc
@@ -43,24 +44,37 @@ endif
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c raycaster.h platform_sdl.h texture.h
+%.o: %.c game_globals.h raycaster.h platform_sdl.h texture.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	$(RM) $(OBJS) $(TEST_OBJS) $(TARGET) $(TEST_TARGET) raycaster.exe texture.o
+	$(RM) $(OBJS) $(TARGET) raycaster.exe \
+	      test_raycaster test_raycaster.o fake_map_manager.o \
+	      test_map_loader test_map_loader.o
 
-# ── Test ───────────────────────────────────────────────────────────────
-TEST_TARGET = test_raycaster
-TEST_SRCS   = test_raycaster.c raycaster.c
-TEST_OBJS   = $(TEST_SRCS:.c=.o)
+# ── Tests ─────────────────────────────────────────────────────────────
 
-test: $(TEST_TARGET)
+# Unit tests link against fake_map_manager.o (hardcoded test map, no filesystem)
+TEST_TARGET     = test_raycaster
+TEST_ML_TARGET  = test_map_loader
+
+test: $(TEST_TARGET) $(TEST_ML_TARGET)
 	./$(TEST_TARGET)
+	./$(TEST_ML_TARGET)
 
-$(TEST_TARGET): test_raycaster.o raycaster.o
+$(TEST_TARGET): test_raycaster.o raycaster.o fake_map_manager.o
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
-test_raycaster.o: test_raycaster.c raycaster.h
+$(TEST_ML_TARGET): test_map_loader.o raycaster.o map_manager.o
+	$(CC) $(CFLAGS) -o $@ $^ -lm
+
+test_raycaster.o: test_raycaster.c game_globals.h raycaster.h map.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test_map_loader.o: test_map_loader.c game_globals.h raycaster.h map.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+fake_map_manager.o: fake_map_manager.c game_globals.h raycaster.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 all: $(TARGET)

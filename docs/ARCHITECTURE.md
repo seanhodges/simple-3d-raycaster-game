@@ -50,7 +50,12 @@ graph TB
     PLAT --> TEX
     TEX --> SDL3
     TEX --> BMP
-    RC --> MAP
+    subgraph "Layer 1b — Map Loader"
+        MAPMOD["map_manager.c / .h<br/>ASCII map parser"]
+    end
+
+    MAIN --> MAPMOD
+    MAPMOD --> MAP
 
     style RC fill:#1a3a5c,stroke:#4a9eff,color:#fff
     style PLAT fill:#3a1a3a,stroke:#9a4aff,color:#fff
@@ -74,14 +79,26 @@ graph TB
 
 ## The Three-Layer Architecture
 
+### Shared Types (`game_globals.h`)
+
+**Design pattern: Shared Type Definitions** — a standalone header that defines the core data types (`Map`, `GameState`, `Input`, `Player`, `RayHit`) and the constants they depend on (`SCREEN_W`, `MAP_MAX_W`, `MAP_MAX_H`). Included by `raycaster.h` and available to all layers. No function declarations — types only.
+
 ### Layer 1: Core Engine (`raycaster.c` / `raycaster.h`)
 
-**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h`, `stdio.h`, and `string.h`. That's it. No SDL or non-standard headers.
+**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h` and `stdio.h`. That's it. No SDL or non-standard headers. `raycaster.h` re-exports `game_globals.h` so consumers get all types and constants from a single include.
 
 Responsibilities:
-- **Map loading** (`rc_load_map`) — parse the ASCII map file into the `Map` grid
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
 - **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer
+
+### Map Loader (`map_manager.c` / `map.h`)
+
+**Design pattern: File Parser Module** — separated from the core engine to allow test-time substitution with a fake implementation.
+
+Responsibilities:
+- **Map loading** (`map_load`) — parse the ASCII map file into a standalone `Map` struct and initialise the `Player` position and camera
+
+For unit tests, `fake_map_manager.c` provides an alternative `map_load` implementation that returns a hardcoded map with all cell types, removing filesystem dependencies from the core test suite.
 
 This separation is an important architectural decision in the project. It means:
 - The core engine can be unit-tested without a display
@@ -156,13 +173,13 @@ sequenceDiagram
     Plat-->>Main: returns true (keep running) or false (quit)
 
     loop While accumulator >= DT (1/60s)
-        Main->>Core: rc_update(&gs, &input, DT)
+        Main->>Core: rc_update(&gs, &map, &input, DT)
         Note over Core: Apply rotation (2D rotation matrix)
         Note over Core: Apply translation (with collision)
         Note over Main: accumulator -= DT
     end
 
-    Main->>Core: rc_cast(&gs)
+    Main->>Core: rc_cast(&gs, &map)
     Note over Core: For each of 800 screen columns:<br/>Cast ray via DDA, store distance in gs.hits[]
 
     Main->>Plat: platform_render(&gs)
@@ -338,9 +355,9 @@ The player spawns at the **center** of the `P` cell (`col + 0.5, row + 0.5`) fac
 ```mermaid
 classDiagram
     class GameState {
-        Map map
         Player player
         RayHit hits[800]
+        bool game_over
     }
 
     class Map {
@@ -369,18 +386,19 @@ classDiagram
         bool turn_right
     }
 
-    GameState *-- Map
     GameState *-- Player
     GameState *-- RayHit
 
-    note for GameState "The single source of truth.\nPassed by pointer to all functions.\nAllocated on main()'s stack."
+    note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
+    note for Map "Standalone map data.\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
     note for RayHit "Filled every frame by rc_cast().\nConsumed by platform_render().\nOne entry per screen column."
     note for Input "Written by platform layer.\nRead by core engine.\nBridge between layers."
 ```
 
 ### Ownership Model
 
-- `GameState` is the **single source of truth** — allocated on `main()`'s stack, passed by pointer everywhere
+- `GameState` holds player state and the ray buffer — allocated on `main()`'s stack, passed by pointer everywhere
+- `Map` is a **standalone struct** — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
 - `Input` is the **bridge** — written by the platform layer, read by the core engine
 - `RayHit[SCREEN_W]` is the **frame buffer** — filled by `rc_cast()`, consumed by `platform_render()`
 - Platform state (window, renderer) is **private** to `platform_sdl.c` via file-scoped statics

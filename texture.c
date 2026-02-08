@@ -4,7 +4,6 @@
  *  file.  Falls back to a solid wall colour if the file is missing.
  */
 #include "texture.h"
-#include "raycaster.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>

@@ -1,0 +1,47 @@
+#ifndef GAME_GLOBALS_H
+#define GAME_GLOBALS_H
+
+#include <stdbool.h>
+
+/* ── Display constants (needed by GameState) ──────────────────────── */
+#define SCREEN_W  800
+
+/* ── Map limits ────────────────────────────────────────────────────── */
+#define MAP_MAX_W 64
+#define MAP_MAX_H 64
+
+/* ── Per-column ray result ─────────────────────────────────────────── */
+typedef struct RayHit {
+    float wall_dist;     /* perpendicular distance to wall          */
+    float wall_x;        /* where on the wall face the ray hit 0-1  */
+    int   side;          /* 0 = x-side hit, 1 = y-side hit          */
+    int   wall_type;     /* texture index (0 .. TEX_COUNT-1)        */
+} RayHit;
+
+/* ── Player state ──────────────────────────────────────────────────── */
+typedef struct Player {
+    float x, y;          /* position in map units                    */
+    float dir_x, dir_y;  /* direction vector                         */
+    float plane_x, plane_y; /* camera plane (perpendicular to dir)   */
+} Player;
+
+/* ── World map ─────────────────────────────────────────────────────── */
+typedef struct Map {
+    int  cells[MAP_MAX_H][MAP_MAX_W];
+    int  w, h;
+} Map;
+
+/* ── Game state (excludes map — managed separately) ───────────────── */
+typedef struct GameState {
+    Player  player;
+    RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
+    bool    game_over;        /* true when player reaches exit cell   */
+} GameState;
+
+/* ── Input flags (set by platform layer) ───────────────────────────── */
+typedef struct Input {
+    bool forward, back;
+    bool turn_left, turn_right;
+} Input;
+
+#endif /* GAME_GLOBALS_H */
