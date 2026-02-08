@@ -1,5 +1,5 @@
-#ifndef TEXTURE_H
-#define TEXTURE_H
+#ifndef TEXTURES_SDL_H
+#define TEXTURES_SDL_H
 
 #include <stdbool.h>
 
@@ -24,4 +24,4 @@ void tm_shutdown(void);
  *   Returns colour in RGBA8888 format. */
 unsigned int tm_get_pixel(int wall_type, int tex_x, int tex_y);
 
-#endif /* TEXTURE_H */
+#endif /* TEXTURES_SDL_H */

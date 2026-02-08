@@ -1,14 +1,14 @@
 /*  test_raycaster.c  –  unit tests for the platform-independent core
  *  ──────────────────────────────────────────────────────────────────
- *  Links against raycaster.o and fake_map_manager.o — no SDL dependency.
+ *  Links against raycaster.o and map_manager_fake.o — no SDL dependency.
  *  The fake map module provides a hardcoded map with all cell types
  *  so these tests are deterministic and filesystem-independent.
  *  Build:  make test
  *  Run:    ./test_raycaster
  */
 #include "raycaster.h"
-#include "map.h"
-#include "texture.h"
+#include "map_manager.h"
+#include "textures_sdl.h"
 
 #include <assert.h>
 #include <math.h>
