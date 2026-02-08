@@ -4,6 +4,7 @@
  *  No SDL headers.  Pure C + math.
  */
 #include "map.h"
+#include "raycaster.h"
 
 #include <math.h>
 #include <stdio.h>

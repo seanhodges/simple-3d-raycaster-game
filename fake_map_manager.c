@@ -19,6 +19,7 @@
  *  Wall types present: 0 (X/#), 1–9 (digits)
  */
 #include "map.h"
+#include "raycaster.h"
 
 #include <math.h>
 #include <string.h>

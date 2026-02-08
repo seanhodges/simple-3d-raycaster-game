@@ -1,8 +1,7 @@
 #ifndef PLATFORM_SDL_H
 #define PLATFORM_SDL_H
 
-#include "raycaster.h"
-#include <stdbool.h>
+#include "game_globals.h"
 
 bool platform_init(const char *title);
 void platform_shutdown(void);
