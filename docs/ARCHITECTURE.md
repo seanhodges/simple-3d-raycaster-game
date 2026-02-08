@@ -79,9 +79,13 @@ graph TB
 
 ## The Three-Layer Architecture
 
+### Shared Types (`game_globals.h`)
+
+**Design pattern: Shared Type Definitions** — a standalone header that defines the core data types (`Map`, `GameState`, `Input`, `Player`, `RayHit`) and the constants they depend on (`SCREEN_W`, `MAP_MAX_W`, `MAP_MAX_H`). Included by `raycaster.h` and available to all layers. No function declarations — types only.
+
 ### Layer 1: Core Engine (`raycaster.c` / `raycaster.h`)
 
-**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h` and `stdio.h`. That's it. No SDL or non-standard headers.
+**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h` and `stdio.h`. That's it. No SDL or non-standard headers. `raycaster.h` re-exports `game_globals.h` so consumers get all types and constants from a single include.
 
 Responsibilities:
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
@@ -385,8 +389,8 @@ classDiagram
     GameState *-- Player
     GameState *-- RayHit
 
-    note for GameState "Player state and ray buffer.\nPassed by pointer to all functions.\nAllocated on main()'s stack."
-    note for Map "Standalone map data.\nOwned by main(), passed as\nconst Map* to engine functions."
+    note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
+    note for Map "Standalone map data.\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
     note for RayHit "Filled every frame by rc_cast().\nConsumed by platform_render().\nOne entry per screen column."
     note for Input "Written by platform layer.\nRead by core engine.\nBridge between layers."
 ```

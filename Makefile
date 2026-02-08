@@ -44,7 +44,7 @@ endif
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c raycaster.h platform_sdl.h texture.h map.h
+%.o: %.c game_globals.h raycaster.h platform_sdl.h texture.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
@@ -68,13 +68,13 @@ $(TEST_TARGET): test_raycaster.o raycaster.o fake_map_manager.o
 $(TEST_ML_TARGET): test_map_loader.o raycaster.o map_manager.o
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
-test_raycaster.o: test_raycaster.c raycaster.h map.h
+test_raycaster.o: test_raycaster.c game_globals.h raycaster.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-test_map_loader.o: test_map_loader.c raycaster.h map.h
+test_map_loader.o: test_map_loader.c game_globals.h raycaster.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-fake_map_manager.o: fake_map_manager.c raycaster.h map.h
+fake_map_manager.o: fake_map_manager.c game_globals.h raycaster.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 all: $(TARGET)

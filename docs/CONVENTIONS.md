@@ -55,7 +55,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 
 ### Header Files
 
-Every `.c` file has a corresponding `.h` file (except `main.c`). Headers follow this structure:
+Every `.c` file has a corresponding `.h` file (except `main.c`). Shared data types live in `game_globals.h` and are re-exported via `raycaster.h`. Headers follow this structure:
 
 ```c
 #ifndef RAYCASTER_H          // Include guard: FILENAME_H
@@ -412,7 +412,8 @@ Constants used by only one file are `#define`d in that `.c` file, not in a heade
 
 | Location | Examples | Why |
 |---|---|---|
-| `raycaster.h` | `SCREEN_W`, `FOV_DEG`, `COL_WALL`, `TEX_SIZE`, `TEX_COUNT` | Used by both core and platform |
+| `game_globals.h` | `SCREEN_W`, `MAP_MAX_W`, `MAP_MAX_H` | Constants needed by shared type definitions |
+| `raycaster.h` | `SCREEN_H`, `FOV_DEG`, `COL_WALL`, `TEX_SIZE`, `TEX_COUNT` | Used by both core and platform |
 | `raycaster.c` | `PI`, `MOVE_SPD`, `ROT_SPD`, `COL_MARGIN` | Implementation detail of the core |
 | `main.c` | `TICK_RATE`, `DT`, `MAX_FRAME` | Implementation detail of the game loop |
 
