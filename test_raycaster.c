@@ -1,10 +1,13 @@
 /*  test_raycaster.c  –  unit tests for the platform-independent core
  *  ──────────────────────────────────────────────────────────────────
- *  Links only against raycaster.o — no SDL dependency.
+ *  Links against raycaster.o and fake_map.o — no SDL dependency.
+ *  The fake map module provides a hardcoded map with all cell types
+ *  so these tests are deterministic and filesystem-independent.
  *  Build:  make test
  *  Run:    ./test_raycaster
  */
 #include "raycaster.h"
+#include "map.h"
 
 #include <assert.h>
 #include <math.h>
@@ -65,120 +68,190 @@ static void init_box_map(GameState *gs, int w, int h,
     gs->player.plane_y =  dir_x * plane_len;
 }
 
+/* ── Helper: load the fake map into a GameState ───────────────────── */
+
+static void load_fake_map(GameState *gs)
+{
+    memset(gs, 0, sizeof(*gs));
+    bool ok = map_load(gs, "ignored");
+    assert(ok);
+}
+
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  rc_load_map tests                                                 */
+/*  Fake map structure tests                                          */
+/*                                                                    */
+/*  The fake map layout (7 wide × 5 tall):                            */
+/*                                                                    */
+/*      col:  0  1  2  3  4  5  6                                     */
+/*  row 0:    X  1  2  3  #  4  X    cells: 1,2,3,4,1,5,1            */
+/*  row 1:    5  P     F     6  X    cells: 6,0,0,-1,0,7,1           */
+/*  row 2:    X  7  8  9  0     X    cells: 1,8,9,10,1,0,1           */
+/*  row 3:    X        X     X  X    cells: 1,0,0,1,0,1,1            */
+/*  row 4:    X  X  X  X  X  X  X    cells: all 1                    */
 /* ═══════════════════════════════════════════════════════════════════ */
 
-static void test_load_map_basic(void)
+static void test_fake_map_dimensions(void)
 {
     GameState gs;
-    memset(&gs, 0, sizeof(gs));
+    load_fake_map(&gs);
 
-    bool ok = rc_load_map(&gs, "map.txt");
-    assert(ok);
-    assert(gs.map.w == 16);
-    assert(gs.map.h == 17);
+    assert(gs.map.w == 7);
+    assert(gs.map.h == 5);
+}
 
-    /* Top-left corner is a wall */
+static void test_fake_map_wall_x_hash(void)
+{
+    /* X and # both produce cell value 1 (wall_type 0) */
+    GameState gs;
+    load_fake_map(&gs);
+
+    /* 'X' at corners */
     assert(gs.map.cells[0][0] == 1);
+    assert(gs.map.cells[0][6] == 1);
+    assert(gs.map.cells[4][0] == 1);
+    assert(gs.map.cells[4][6] == 1);
 
-    /* Player spawn is at row 6, col 3 ('P' in map.txt) → centre of cell */
-    ASSERT_NEAR(gs.player.x, 4.5f, 0.01f);
-    ASSERT_NEAR(gs.player.y, 6.5f, 0.01f);
+    /* '#' at row 0, col 4 */
+    assert(gs.map.cells[0][4] == 1);
+}
 
+static void test_fake_map_digit_walls(void)
+{
+    /* Digit N produces cell value N+1 (wall_type N) */
+    GameState gs;
+    load_fake_map(&gs);
+
+    /* Digit '1' at (0,1) → cell = 2 */
+    assert(gs.map.cells[0][1] == 2);
+    /* Digit '2' at (0,2) → cell = 3 */
+    assert(gs.map.cells[0][2] == 3);
+    /* Digit '3' at (0,3) → cell = 4 */
+    assert(gs.map.cells[0][3] == 4);
+    /* Digit '4' at (0,5) → cell = 5 */
+    assert(gs.map.cells[0][5] == 5);
+    /* Digit '5' at (1,0) → cell = 6 */
+    assert(gs.map.cells[1][0] == 6);
+    /* Digit '6' at (1,5) → cell = 7 */
+    assert(gs.map.cells[1][5] == 7);
+    /* Digit '7' at (2,1) → cell = 8 */
+    assert(gs.map.cells[2][1] == 8);
+    /* Digit '8' at (2,2) → cell = 9 */
+    assert(gs.map.cells[2][2] == 9);
+    /* Digit '9' at (2,3) → cell = 10 */
+    assert(gs.map.cells[2][3] == 10);
+    /* Digit '0' at (2,4) → cell = 1 */
+    assert(gs.map.cells[2][4] == 1);
+}
+
+static void test_fake_map_floor_cells(void)
+{
+    /* Spaces and player cell are floor (cell value 0) */
+    GameState gs;
+    load_fake_map(&gs);
+
+    /* Player cell at (1,1) */
+    assert(gs.map.cells[1][1] == CELL_FLOOR);
+    /* Space at (1,2) */
+    assert(gs.map.cells[1][2] == CELL_FLOOR);
+    /* Space at (1,4) */
+    assert(gs.map.cells[1][4] == CELL_FLOOR);
+    /* Interior floor at (3,1) */
+    assert(gs.map.cells[3][1] == CELL_FLOOR);
+    /* Interior floor at (3,2) */
+    assert(gs.map.cells[3][2] == CELL_FLOOR);
+}
+
+static void test_fake_map_exit_cell(void)
+{
+    /* 'F' at row 1, col 3 should be CELL_EXIT */
+    GameState gs;
+    load_fake_map(&gs);
+
+    assert(gs.map.cells[1][3] == CELL_EXIT);
+}
+
+static void test_fake_map_player_position(void)
+{
+    /* Player spawns at centre of 'P' cell (row 1, col 1) */
+    GameState gs;
+    load_fake_map(&gs);
+
+    ASSERT_NEAR(gs.player.x, 1.5f, 0.01f);
+    ASSERT_NEAR(gs.player.y, 1.5f, 0.01f);
+}
+
+static void test_fake_map_player_direction(void)
+{
     /* Player faces east by default */
+    GameState gs;
+    load_fake_map(&gs);
+
     ASSERT_NEAR(gs.player.dir_x, 1.0f, 0.01f);
     ASSERT_NEAR(gs.player.dir_y, 0.0f, 0.01f);
+}
 
-    /* Camera plane is perpendicular (pointing +y) */
+static void test_fake_map_camera_plane(void)
+{
+    /* Camera plane is perpendicular to direction, length = tan(FOV/2) */
+    GameState gs;
+    load_fake_map(&gs);
+
+    float half_fov = (FOV_DEG * 0.5f) * (PI / 180.0f);
+    float expected_plane = tanf(half_fov);
+
     ASSERT_NEAR(gs.player.plane_x, 0.0f, 0.01f);
-    assert(gs.player.plane_y > 0.0f);
+    ASSERT_NEAR(gs.player.plane_y, expected_plane, 0.01f);
 }
 
-static void test_load_map_missing_file(void)
+static void test_fake_map_walls_are_walls(void)
 {
+    /* All cells with value > 0 should be walls (is_wall logic) */
     GameState gs;
-    memset(&gs, 0, sizeof(gs));
-    bool ok = rc_load_map(&gs, "nonexistent.txt");
-    assert(!ok);
+    load_fake_map(&gs);
+
+    /* Check the bottom row is entirely walled */
+    for (int c = 0; c < gs.map.w; c++)
+        assert(gs.map.cells[4][c] > 0);
+
+    /* Check the left and right columns are walls in all rows */
+    for (int r = 0; r < gs.map.h; r++) {
+        assert(gs.map.cells[r][0] > 0);
+        assert(gs.map.cells[r][6] > 0);
+    }
 }
 
-static void test_load_map_digit_walls(void)
+static void test_fake_map_exit_is_walkable(void)
 {
-    /* Write a temporary map with digit walls */
-    FILE *fp = fopen("test_digit_map.txt", "w");
-    assert(fp);
-    fprintf(fp, "012\n");
-    fprintf(fp, "3P4\n");
-    fprintf(fp, "567\n");
-    fclose(fp);
-
+    /* Exit cell value is negative, so is_wall (> 0) treats it as walkable */
     GameState gs;
-    memset(&gs, 0, sizeof(gs));
-    bool ok = rc_load_map(&gs, "test_digit_map.txt");
-    assert(ok);
+    load_fake_map(&gs);
 
-    /* Digit '0' → cell = 1 (wall_type 0) */
-    assert(gs.map.cells[0][0] == 1);
-    /* Digit '1' → cell = 2 (wall_type 1) */
-    assert(gs.map.cells[0][1] == 2);
-    /* Digit '2' → cell = 3 (wall_type 2) */
-    assert(gs.map.cells[0][2] == 3);
-    /* Digit '3' → cell = 4 (wall_type 3) */
-    assert(gs.map.cells[1][0] == 4);
-    /* 'P' → floor */
-    assert(gs.map.cells[1][1] == 0);
-    /* Digit '5' → cell = 6 (wall_type 5) */
-    assert(gs.map.cells[2][0] == 6);
-    /* Digit '9' is not in this map, but '7' → cell = 8 */
-    assert(gs.map.cells[2][2] == 8);
-
-    remove("test_digit_map.txt");
-}
-
-static void test_load_map_x_hash_type(void)
-{
-    /* Verify X and # both produce cell=1 (wall_type 0) */
-    FILE *fp = fopen("test_xhash_map.txt", "w");
-    assert(fp);
-    fprintf(fp, "X#X\n");
-    fprintf(fp, "#P#\n");
-    fprintf(fp, "X#X\n");
-    fclose(fp);
-
-    GameState gs;
-    memset(&gs, 0, sizeof(gs));
-    bool ok = rc_load_map(&gs, "test_xhash_map.txt");
-    assert(ok);
-
-    /* Both X and # should produce cell value 1 */
-    assert(gs.map.cells[0][0] == 1);
-    assert(gs.map.cells[0][1] == 1);
-
-    remove("test_xhash_map.txt");
-}
-
-static void test_load_map_exit_cell(void)
-{
-    /* Verify F is parsed as CELL_EXIT */
-    FILE *fp = fopen("test_exit_map.txt", "w");
-    assert(fp);
-    fprintf(fp, "XXXXX\n");
-    fprintf(fp, "XP FX\n");
-    fprintf(fp, "XXXXX\n");
-    fclose(fp);
-
-    GameState gs;
-    memset(&gs, 0, sizeof(gs));
-    bool ok = rc_load_map(&gs, "test_exit_map.txt");
-    assert(ok);
-
-    /* 'F' at row 1, col 3 should be CELL_EXIT */
+    assert(gs.map.cells[1][3] < 0);   /* negative = not a wall */
     assert(gs.map.cells[1][3] == CELL_EXIT);
-    /* Space at row 1, col 2 should be floor */
-    assert(gs.map.cells[1][2] == CELL_FLOOR);
+}
 
-    remove("test_exit_map.txt");
+static void test_fake_map_all_wall_types_present(void)
+{
+    /* Verify wall types 0–9 are all present somewhere in the map */
+    GameState gs;
+    load_fake_map(&gs);
+
+    bool found[TEX_COUNT];
+    memset(found, 0, sizeof(found));
+
+    for (int r = 0; r < gs.map.h; r++) {
+        for (int c = 0; c < gs.map.w; c++) {
+            int cell = gs.map.cells[r][c];
+            if (cell > 0) {
+                int wall_type = cell - 1;
+                if (wall_type >= 0 && wall_type < TEX_COUNT)
+                    found[wall_type] = true;
+            }
+        }
+    }
+
+    for (int t = 0; t < TEX_COUNT; t++)
+        assert(found[t]);
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -591,20 +664,17 @@ static void test_cast_side_shading(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  Integration-style tests                                           */
+/*  Integration-style tests (using fake map)                          */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 static void test_load_then_cast(void)
 {
     GameState gs;
-    memset(&gs, 0, sizeof(gs));
-    bool ok = rc_load_map(&gs, "map.txt");
-    assert(ok);
+    load_fake_map(&gs);
 
     rc_cast(&gs);
 
-    /* Player spawns at (3.5, 6.5) facing east.
-     * All columns should produce valid hits. */
+    /* All columns should produce valid hits */
     for (int x = 0; x < SCREEN_W; x++) {
         assert(gs.hits[x].wall_dist > 0.0f);
         assert(gs.hits[x].side == 0 || gs.hits[x].side == 1);
@@ -634,18 +704,46 @@ static void test_walk_and_cast(void)
     assert(dist > 0.0f);
 }
 
+static void test_fake_map_exit_triggers_game_over(void)
+{
+    /* Walk from player spawn towards the exit cell and confirm game_over */
+    GameState gs;
+    load_fake_map(&gs);
+
+    assert(!gs.game_over);
+
+    Input in;
+    memset(&in, 0, sizeof(in));
+    in.forward = true;
+
+    /* Player at (1.5, 1.5) facing east, exit at col 3, row 1.
+     * Walk east until reaching exit centre (3.5, 1.5). */
+    for (int i = 0; i < 120; i++) {
+        rc_update(&gs, &in, 1.0f / 60.0f);
+        if (gs.game_over) break;
+    }
+
+    assert(gs.game_over);
+}
+
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  Main                                                              */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 int main(void)
 {
-    printf("\n── rc_load_map ──────────────────────────────────────────\n");
-    RUN_TEST(test_load_map_basic);
-    RUN_TEST(test_load_map_missing_file);
-    RUN_TEST(test_load_map_digit_walls);
-    RUN_TEST(test_load_map_x_hash_type);
-    RUN_TEST(test_load_map_exit_cell);
+    printf("\n── fake map structure ───────────────────────────────────\n");
+    RUN_TEST(test_fake_map_dimensions);
+    RUN_TEST(test_fake_map_wall_x_hash);
+    RUN_TEST(test_fake_map_digit_walls);
+    RUN_TEST(test_fake_map_floor_cells);
+    RUN_TEST(test_fake_map_exit_cell);
+    RUN_TEST(test_fake_map_player_position);
+    RUN_TEST(test_fake_map_player_direction);
+    RUN_TEST(test_fake_map_camera_plane);
+    RUN_TEST(test_fake_map_walls_are_walls);
+    RUN_TEST(test_fake_map_exit_is_walkable);
+    RUN_TEST(test_fake_map_all_wall_types_present);
 
     printf("\n── rc_update ───────────────────────────────────────────\n");
     RUN_TEST(test_update_no_input);
@@ -675,6 +773,7 @@ int main(void)
     printf("\n── Integration ─────────────────────────────────────────\n");
     RUN_TEST(test_load_then_cast);
     RUN_TEST(test_walk_and_cast);
+    RUN_TEST(test_fake_map_exit_triggers_game_over);
 
     printf("\n══════════════════════════════════════════════════════════\n");
     printf("  %d / %d tests passed\n", tests_passed, tests_run);

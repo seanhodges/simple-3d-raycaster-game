@@ -50,7 +50,12 @@ graph TB
     PLAT --> TEX
     TEX --> SDL3
     TEX --> BMP
-    RC --> MAP
+    subgraph "Layer 1b — Map Loader"
+        MAPMOD["map.c / .h<br/>ASCII map parser"]
+    end
+
+    MAIN --> MAPMOD
+    MAPMOD --> MAP
 
     style RC fill:#1a3a5c,stroke:#4a9eff,color:#fff
     style PLAT fill:#3a1a3a,stroke:#9a4aff,color:#fff
@@ -76,12 +81,20 @@ graph TB
 
 ### Layer 1: Core Engine (`raycaster.c` / `raycaster.h`)
 
-**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h`, `stdio.h`, and `string.h`. That's it. No SDL or non-standard headers.
+**Design pattern: Pure Computation Module** — this file has zero platform dependencies. It includes `math.h` and `stdio.h`. That's it. No SDL or non-standard headers.
 
 Responsibilities:
-- **Map loading** (`rc_load_map`) — parse the ASCII map file into the `Map` grid
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
 - **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer
+
+### Map Loader (`map.c` / `map.h`)
+
+**Design pattern: File Parser Module** — separated from the core engine to allow test-time substitution with a fake implementation.
+
+Responsibilities:
+- **Map loading** (`map_load`) — parse the ASCII map file into the `Map` grid and initialise the `Player` position and camera
+
+For unit tests, `fake_map.c` provides an alternative `map_load` implementation that returns a hardcoded map with all cell types, removing filesystem dependencies from the core test suite.
 
 This separation is an important architectural decision in the project. It means:
 - The core engine can be unit-tested without a display

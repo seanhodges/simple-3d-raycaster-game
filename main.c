@@ -2,6 +2,7 @@
  *  ───────────────────────────────────────────────
  */
 #include "raycaster.h"
+#include "map.h"
 #include "platform_sdl.h"
 #include "texture.h"
 
@@ -23,7 +24,7 @@ int main(int argc, char *argv[])
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!rc_load_map(&gs, map_path)) {
+    if (!map_load(&gs, map_path)) {
         fprintf(stderr, "main: failed to load map '%s'\n", map_path);
         return 1;
     }

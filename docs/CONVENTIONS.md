@@ -24,7 +24,8 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 
 | Prefix | Layer | Examples |
 |---|---|---|
-| `rc_` | Core raycasting engine | `rc_load_map`, `rc_update`, `rc_cast` |
+| `rc_` | Core raycasting engine | `rc_update`, `rc_cast` |
+| `map_` | Map file loader | `map_load` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
 | `tm_` | Texture manager | `tm_init`, `tm_shutdown`, `tm_get_pixel` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
@@ -286,7 +287,11 @@ This is a deliberate design choice:
 make test        # Build and run all tests (no SDL required)
 ```
 
-Tests live in `test_raycaster.c` and link only against `raycaster.o` — no SDL dependency. The test binary runs `map.txt`-dependent tests from the project root, so always run from there.
+Tests live in two files:
+- `test_raycaster.c` — links against `raycaster.o` and `fake_map.o` (a hardcoded test map). Filesystem-independent.
+- `test_map_loader.c` — links against `raycaster.o` and `map.o` (the real file loader). Requires `map.txt` in the working directory.
+
+Both have no SDL dependency. Run from the project root with `make test`.
 
 ### Test Architecture
 
@@ -315,7 +320,9 @@ This avoids depending on `map.txt` for most tests. Only `test_load_map_*` and `t
 2. Use `init_box_map()` for geometry setup, or `rc_load_map()` for file-based tests
 3. Use `ASSERT_NEAR()` for distance comparisons (raycasting has float imprecision)
 4. Add `RUN_TEST(test_your_name);` to `main()`
-5. Run `make test` — zero warnings required, zero failures expected
+5. For tests that need a known map, use the fake map module (`fake_map.c`) via `map_load()` in `test_raycaster.c`
+6. For tests that exercise the real file parser, add them to `test_map_loader.c` — avoid assuming specific map contents
+7. Run `make test` — zero warnings required, zero failures expected
 
 ---
 

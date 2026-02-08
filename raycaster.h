@@ -63,9 +63,6 @@ typedef struct Input {
 
 /* ── Public API ────────────────────────────────────────────────────── */
 
-/**  Load map from file. Returns false on failure. */
-bool rc_load_map(GameState *gs, const char *path);
-
 /**  Update player position/rotation from input.  dt in seconds. */
 void rc_update(GameState *gs, const Input *in, float dt);
 
