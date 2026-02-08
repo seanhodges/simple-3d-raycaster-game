@@ -13,6 +13,9 @@
 
 /* ── Player movement / rotation ────────────────────────────────────── */
 
+/**  Check if a position is inside a wall.
+ *   Returns true for walls (cell > 0) and out-of-bounds positions.
+ *   Floor cells (cell == 0) and special floor cells (cell < 0) are walkable. */
 static bool is_wall(const Map *m, float x, float y)
 {
     int mx = (int)x;
@@ -26,6 +29,10 @@ void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
     Player *p = &gs->player;
 
     /* ── Rotation ─────────────────────────────────────────────────── */
+    /* Apply 2D rotation matrix to both direction and camera plane vectors.
+     * Rotation matrix: [cos -sin]   transforms a vector (x, y) by angle rot.
+     *                  [sin  cos]
+     * Both direction and plane must rotate together to maintain FOV. */
     float rot = 0.0f;
     if (in->turn_left)  rot = -ROT_SPD * dt;
     if (in->turn_right) rot =  ROT_SPD * dt;
@@ -52,7 +59,10 @@ void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
         dy -= p->dir_y * MOVE_SPD * dt;
     }
 
-    /* Slide along walls: test each axis independently with margin */
+    /* Axis-independent collision: test X and Y separately with a margin.
+     * This enables "wall sliding" – if you hit a wall diagonally, you
+     * slide along it instead of stopping. Note: X is tested first, then
+     * Y uses the updated p->x to prevent corner-cutting through walls. */
     if (!is_wall(map, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
         p->x += dx;
     if (!is_wall(map, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
@@ -73,58 +83,77 @@ void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
 }
 
 /* ── DDA Raycasting ────────────────────────────────────────────────── */
+/* Digital Differential Analyzer (DDA) – an efficient grid-traversal algorithm.
+ * For each screen column, cast one ray from the player's eye through the
+ * scene. Step through the map grid cell-by-cell until hitting a wall.
+ * The distance to the wall determines the height of the vertical strip drawn. */
 
 void rc_cast(GameState *gs, const Map *map)
 {
     const Player *p = &gs->player;
 
     for (int x = 0; x < SCREEN_W; x++) {
-        /* Camera-space x: -1 (left) to +1 (right) */
+        /* Camera-space x: -1 (left edge) to +1 (right edge).
+         * This maps screen column to a position across the camera plane. */
         float cam_x = 2.0f * x / (float)SCREEN_W - 1.0f;
 
+        /* Ray direction = player direction + (camera plane * cam_x).
+         * This creates a ray that sweeps across the FOV as x goes 0→SCREEN_W. */
         float ray_dx = p->dir_x + p->plane_x * cam_x;
         float ray_dy = p->dir_y + p->plane_y * cam_x;
 
-        /* Current map cell */
+        /* Start in the map cell containing the player */
         int map_x = (int)p->x;
         int map_y = (int)p->y;
 
-        /* Delta-dist: distance ray must travel to cross one cell boundary */
+        /* Delta-dist: how far the ray travels to cross one full grid cell.
+         * If ray_dx = 1, crossing one X cell takes exactly 1 unit. If ray_dx = 0.5,
+         * it takes 2 units (hence 1 / ray_dx). We use absolute value because
+         * distance is always positive. 1e30 (large number) handles zero direction. */
         float delta_dx = (ray_dx == 0.0f) ? 1e30f : fabsf(1.0f / ray_dx);
         float delta_dy = (ray_dy == 0.0f) ? 1e30f : fabsf(1.0f / ray_dy);
 
+        /* Side-dist: distance from player to the NEXT grid boundary on each axis.
+         * Step: which direction to move on the grid (+1 or -1).
+         * If ray points left (ray_dx < 0), we step -1 and measure distance to
+         * the left edge of the current cell. Otherwise, step +1 to the right edge. */
         float side_dx, side_dy;
         int step_x, step_y;
 
         if (ray_dx < 0) {
             step_x  = -1;
-            side_dx = (p->x - map_x) * delta_dx;
+            side_dx = (p->x - map_x) * delta_dx;   /* dist to left edge */
         } else {
             step_x  = 1;
-            side_dx = (map_x + 1.0f - p->x) * delta_dx;
+            side_dx = (map_x + 1.0f - p->x) * delta_dx;  /* dist to right edge */
         }
         if (ray_dy < 0) {
             step_y  = -1;
-            side_dy = (p->y - map_y) * delta_dy;
+            side_dy = (p->y - map_y) * delta_dy;   /* dist to top edge */
         } else {
             step_y  = 1;
-            side_dy = (map_y + 1.0f - p->y) * delta_dy;
+            side_dy = (map_y + 1.0f - p->y) * delta_dy;  /* dist to bottom edge */
         }
 
         /* ── DDA loop ─────────────────────────────────────────────── */
+        /* Step through the grid one cell at a time, always advancing along
+         * the axis where the next boundary is closest. side=0 means we crossed
+         * an X boundary (vertical wall face), side=1 means Y boundary (horizontal). */
         int  side = 0;
         bool hit  = false;
 
         while (!hit) {
+            /* Compare distances to next boundary on each axis – step the shorter one */
             if (side_dx < side_dy) {
-                side_dx += delta_dx;
+                side_dx += delta_dx;      /* advance to next X boundary */
                 map_x   += step_x;
-                side = 0;
+                side = 0;                 /* hit a vertical wall face */
             } else {
-                side_dy += delta_dy;
+                side_dy += delta_dy;      /* advance to next Y boundary */
                 map_y   += step_y;
-                side = 1;
+                side = 1;                 /* hit a horizontal wall face */
             }
+            /* Check if we hit a wall (cell > 0) or went out of bounds */
             if (map_x < 0 || map_y < 0 || map_x >= map->w || map_y >= map->h) {
                 hit = true;                    /* out of bounds = wall */
             } else if (map->cells[map_y][map_x] > 0) {
@@ -132,28 +161,39 @@ void rc_cast(GameState *gs, const Map *map)
             }
         }
 
-        /* Perpendicular distance (avoids fish-eye) */
+        /* Perpendicular distance: project the hit point onto the camera plane.
+         * Using Euclidean distance would cause "fish-eye" – walls at screen edges
+         * would look curved because rays to the edges are longer. Instead, we
+         * measure how far FORWARD (perpendicular to camera plane) the ray traveled.
+         * Formula: (hit_cell_edge - player_pos) / ray_direction
+         * The (1 - step) * 0.5 term corrects for which edge of the cell we hit. */
         float perp;
         if (side == 0)
             perp = (map_x - p->x + (1 - step_x) * 0.5f) / ray_dx;
         else
             perp = (map_y - p->y + (1 - step_y) * 0.5f) / ray_dy;
 
-        if (perp < 0.001f) perp = 0.001f;
+        if (perp < 0.001f) perp = 0.001f;  /* clamp to avoid division by zero in rendering */
 
-        /* Fractional position along the wall face (0.0 – 1.0) */
+        /* Fractional position along the wall face (0.0 – 1.0), used for texture X.
+         * If we hit a vertical wall (side=0), use Y coordinate; otherwise use X.
+         * This gives us the exact spot where the ray intersected the wall face.
+         * Subtract the integer part to get only the fractional portion. */
         float wall_x;
         if (side == 0)
-            wall_x = p->y + perp * ray_dy;
+            wall_x = p->y + perp * ray_dy;   /* vertical wall: Y varies along face */
         else
-            wall_x = p->x + perp * ray_dx;
-        wall_x -= floorf(wall_x);
+            wall_x = p->x + perp * ray_dx;   /* horizontal wall: X varies along face */
+        wall_x -= floorf(wall_x);            /* keep only fractional part [0.0, 1.0) */
 
-        /* Extract wall_type from cell value (cell = wall_type + 1) */
+        /* Extract wall_type (texture index) from cell value.
+         * Cell encoding: 0 = floor, 1 = wall type 0, 2 = wall type 1, etc.
+         * So wall_type = cell - 1. Out-of-bounds cells default to type 0. */
         int cell = 0;
         if (map_x >= 0 && map_y >= 0 && map_x < map->w && map_y < map->h)
             cell = map->cells[map_y][map_x];
 
+        /* Store results in the hit buffer for this column – the renderer reads this */
         gs->hits[x].wall_dist = perp;
         gs->hits[x].wall_x    = wall_x;
         gs->hits[x].side      = side;
