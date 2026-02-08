@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────
-#  Makefile – Portable C Raycaster (SDL3)
+#  Makefile – Simple 3D Raycaster Game
 #
 #  Usage:
 #    make              Build for the current platform (Linux / macOS)
