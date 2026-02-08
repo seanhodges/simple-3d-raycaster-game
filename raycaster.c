@@ -21,10 +21,9 @@ static bool is_wall(const Map *m, float x, float y)
     return m->cells[my][mx] > 0;
 }
 
-void rc_update(GameState *gs, const Input *in, float dt)
+void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
 {
     Player *p = &gs->player;
-    const Map *m = &gs->map;
 
     /* ── Rotation ─────────────────────────────────────────────────── */
     float rot = 0.0f;
@@ -54,16 +53,16 @@ void rc_update(GameState *gs, const Input *in, float dt)
     }
 
     /* Slide along walls: test each axis independently with margin */
-    if (!is_wall(m, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
+    if (!is_wall(map, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))
         p->x += dx;
-    if (!is_wall(m, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
+    if (!is_wall(map, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
         p->y += dy;
 
     /* ── Exit detection (player must reach centre of exit cell) ──── */
     int cx = (int)p->x;
     int cy = (int)p->y;
-    if (cx >= 0 && cy >= 0 && cx < m->w && cy < m->h
-        && m->cells[cy][cx] == CELL_EXIT) {
+    if (cx >= 0 && cy >= 0 && cx < map->w && cy < map->h
+        && map->cells[cy][cx] == CELL_EXIT) {
         float centre_x = cx + 0.5f;
         float centre_y = cy + 0.5f;
         float ex = p->x - centre_x;
@@ -75,10 +74,9 @@ void rc_update(GameState *gs, const Input *in, float dt)
 
 /* ── DDA Raycasting ────────────────────────────────────────────────── */
 
-void rc_cast(GameState *gs)
+void rc_cast(GameState *gs, const Map *map)
 {
     const Player *p = &gs->player;
-    const Map    *m = &gs->map;
 
     for (int x = 0; x < SCREEN_W; x++) {
         /* Camera-space x: -1 (left) to +1 (right) */
@@ -127,9 +125,9 @@ void rc_cast(GameState *gs)
                 map_y   += step_y;
                 side = 1;
             }
-            if (map_x < 0 || map_y < 0 || map_x >= m->w || map_y >= m->h) {
+            if (map_x < 0 || map_y < 0 || map_x >= map->w || map_y >= map->h) {
                 hit = true;                    /* out of bounds = wall */
-            } else if (m->cells[map_y][map_x] > 0) {
+            } else if (map->cells[map_y][map_x] > 0) {
                 hit = true;
             }
         }
@@ -153,8 +151,8 @@ void rc_cast(GameState *gs)
 
         /* Extract wall_type from cell value (cell = wall_type + 1) */
         int cell = 0;
-        if (map_x >= 0 && map_y >= 0 && map_x < m->w && map_y < m->h)
-            cell = m->cells[map_y][map_x];
+        if (map_x >= 0 && map_y >= 0 && map_x < map->w && map_y < map->h)
+            cell = map->cells[map_y][map_x];
 
         gs->hits[x].wall_dist = perp;
         gs->hits[x].wall_x    = wall_x;

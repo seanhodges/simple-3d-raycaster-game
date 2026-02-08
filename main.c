@@ -21,10 +21,13 @@ int main(int argc, char *argv[])
     if (argc > 1) map_path = argv[1];
 
     /* Initialise */
+    Map map;
+    memset(&map, 0, sizeof(map));
+
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&gs, map_path)) {
+    if (!map_load(&map, &gs.player, map_path)) {
         fprintf(stderr, "main: failed to load map '%s'\n", map_path);
         return 1;
     }
@@ -60,12 +63,12 @@ int main(int argc, char *argv[])
 
         /* Fixed-step logic updates */
         while (accum >= DT) {
-            rc_update(&gs, &input, DT);
+            rc_update(&gs, &map, &input, DT);
             accum -= DT;
         }
 
         /* Render at display rate */
-        rc_cast(&gs);
+        rc_cast(&gs, &map);
         platform_render(&gs);
 
         /* Player reached the exit cell */

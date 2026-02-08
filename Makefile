@@ -9,7 +9,7 @@
 # ──────────────────────────────────────────────────────────────────────
 
 TARGET   = raycaster
-SRCS     = main.c raycaster.c map.c platform_sdl.c texture.c
+SRCS     = main.c raycaster.c map_manager.c platform_sdl.c texture.c
 OBJS     = $(SRCS:.c=.o)
 
 CC       ?= gcc
@@ -49,12 +49,12 @@ $(TARGET): $(OBJS)
 
 clean:
 	$(RM) $(OBJS) $(TARGET) raycaster.exe \
-	      test_raycaster test_raycaster.o fake_map.o \
+	      test_raycaster test_raycaster.o fake_map_manager.o \
 	      test_map_loader test_map_loader.o
 
 # ── Tests ─────────────────────────────────────────────────────────────
 
-# Unit tests link against fake_map.o (hardcoded test map, no filesystem)
+# Unit tests link against fake_map_manager.o (hardcoded test map, no filesystem)
 TEST_TARGET     = test_raycaster
 TEST_ML_TARGET  = test_map_loader
 
@@ -62,10 +62,10 @@ test: $(TEST_TARGET) $(TEST_ML_TARGET)
 	./$(TEST_TARGET)
 	./$(TEST_ML_TARGET)
 
-$(TEST_TARGET): test_raycaster.o raycaster.o fake_map.o
+$(TEST_TARGET): test_raycaster.o raycaster.o fake_map_manager.o
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
-$(TEST_ML_TARGET): test_map_loader.o raycaster.o map.o
+$(TEST_ML_TARGET): test_map_loader.o raycaster.o map_manager.o
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 test_raycaster.o: test_raycaster.c raycaster.h map.h
@@ -74,7 +74,7 @@ test_raycaster.o: test_raycaster.c raycaster.h map.h
 test_map_loader.o: test_map_loader.c raycaster.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-fake_map.o: fake_map.c raycaster.h map.h
+fake_map_manager.o: fake_map_manager.c raycaster.h map.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 all: $(TARGET)

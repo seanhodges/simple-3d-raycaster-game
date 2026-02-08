@@ -1,9 +1,9 @@
-/*  fake_map.c  –  test-only map loader with hardcoded map
- *  ─────────────────────────────────────────────────────
+/*  fake_map_manager.c  –  test-only map loader with hardcoded map
+ *  ───────────────────────────────────────────────────────────────
  *  Provides a map_load() implementation that ignores the file path
  *  and returns a small hardcoded map containing every cell type.
- *  Link against this instead of map.o for unit tests that need a
- *  known, deterministic map without touching the filesystem.
+ *  Link against this instead of map_manager.o for unit tests that
+ *  need a known, deterministic map without touching the filesystem.
  *
  *  Hardcoded map layout (7 wide × 5 tall):
  *
@@ -45,27 +45,27 @@ static const float FAKE_PLAYER_Y = 1.5f;
 
 /* ── map_load (fake implementation) ───────────────────────────────── */
 
-bool map_load(GameState *gs, const char *path)
+bool map_load(Map *map, Player *player, const char *path)
 {
     (void)path;   /* ignored — always returns the hardcoded map */
 
-    memset(&gs->map, 0, sizeof(gs->map));
-    gs->map.w = FAKE_W;
-    gs->map.h = FAKE_H;
+    memset(map, 0, sizeof(*map));
+    map->w = FAKE_W;
+    map->h = FAKE_H;
 
     for (int r = 0; r < FAKE_H; r++)
         for (int c = 0; c < FAKE_W; c++)
-            gs->map.cells[r][c] = fake_cells[r][c];
+            map->cells[r][c] = fake_cells[r][c];
 
-    gs->player.x = FAKE_PLAYER_X;
-    gs->player.y = FAKE_PLAYER_Y;
+    player->x = FAKE_PLAYER_X;
+    player->y = FAKE_PLAYER_Y;
 
     /* Default facing direction: east, with FOV-derived camera plane */
     float half_fov = (FOV_DEG * 0.5f) * (PI / 180.0f);
-    gs->player.dir_x   =  1.0f;
-    gs->player.dir_y   =  0.0f;
-    gs->player.plane_x  =  0.0f;
-    gs->player.plane_y  =  tanf(half_fov);
+    player->dir_x   =  1.0f;
+    player->dir_y   =  0.0f;
+    player->plane_x  =  0.0f;
+    player->plane_y  =  tanf(half_fov);
 
     return true;
 }

@@ -1,6 +1,6 @@
 /*  test_raycaster.c  –  unit tests for the platform-independent core
  *  ──────────────────────────────────────────────────────────────────
- *  Links against raycaster.o and fake_map.o — no SDL dependency.
+ *  Links against raycaster.o and fake_map_manager.o — no SDL dependency.
  *  The fake map module provides a hardcoded map with all cell types
  *  so these tests are deterministic and filesystem-independent.
  *  Build:  make test
@@ -40,20 +40,21 @@ static int tests_passed = 0;
         }                                                               \
     } while (0)
 
-/* ── Helper: build a GameState with an inline map ─────────────────── */
+/* ── Helper: build a Map + GameState with an inline box map ───────── */
 
-static void init_box_map(GameState *gs, int w, int h,
+static void init_box_map(Map *map, GameState *gs, int w, int h,
                          float px, float py,
                          float dir_x, float dir_y)
 {
+    memset(map, 0, sizeof(*map));
     memset(gs, 0, sizeof(*gs));
-    gs->map.w = w;
-    gs->map.h = h;
+    map->w = w;
+    map->h = h;
 
     /* Walls on all edges, floor inside */
     for (int r = 0; r < h; r++)
         for (int c = 0; c < w; c++)
-            gs->map.cells[r][c] =
+            map->cells[r][c] =
                 (r == 0 || r == h - 1 || c == 0 || c == w - 1) ? 1 : 0;
 
     gs->player.x     = px;
@@ -68,12 +69,13 @@ static void init_box_map(GameState *gs, int w, int h,
     gs->player.plane_y =  dir_x * plane_len;
 }
 
-/* ── Helper: load the fake map into a GameState ───────────────────── */
+/* ── Helper: load the fake map ────────────────────────────────────── */
 
-static void load_fake_map(GameState *gs)
+static void load_fake_map(Map *map, GameState *gs)
 {
+    memset(map, 0, sizeof(*map));
     memset(gs, 0, sizeof(*gs));
-    bool ok = map_load(gs, "ignored");
+    bool ok = map_load(map, &gs->player, "ignored");
     assert(ok);
 }
 
@@ -92,89 +94,95 @@ static void load_fake_map(GameState *gs)
 
 static void test_fake_map_dimensions(void)
 {
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
-    assert(gs.map.w == 7);
-    assert(gs.map.h == 5);
+    assert(map.w == 7);
+    assert(map.h == 5);
 }
 
 static void test_fake_map_wall_x_hash(void)
 {
     /* X and # both produce cell value 1 (wall_type 0) */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     /* 'X' at corners */
-    assert(gs.map.cells[0][0] == 1);
-    assert(gs.map.cells[0][6] == 1);
-    assert(gs.map.cells[4][0] == 1);
-    assert(gs.map.cells[4][6] == 1);
+    assert(map.cells[0][0] == 1);
+    assert(map.cells[0][6] == 1);
+    assert(map.cells[4][0] == 1);
+    assert(map.cells[4][6] == 1);
 
     /* '#' at row 0, col 4 */
-    assert(gs.map.cells[0][4] == 1);
+    assert(map.cells[0][4] == 1);
 }
 
 static void test_fake_map_digit_walls(void)
 {
     /* Digit N produces cell value N+1 (wall_type N) */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     /* Digit '1' at (0,1) → cell = 2 */
-    assert(gs.map.cells[0][1] == 2);
+    assert(map.cells[0][1] == 2);
     /* Digit '2' at (0,2) → cell = 3 */
-    assert(gs.map.cells[0][2] == 3);
+    assert(map.cells[0][2] == 3);
     /* Digit '3' at (0,3) → cell = 4 */
-    assert(gs.map.cells[0][3] == 4);
+    assert(map.cells[0][3] == 4);
     /* Digit '4' at (0,5) → cell = 5 */
-    assert(gs.map.cells[0][5] == 5);
+    assert(map.cells[0][5] == 5);
     /* Digit '5' at (1,0) → cell = 6 */
-    assert(gs.map.cells[1][0] == 6);
+    assert(map.cells[1][0] == 6);
     /* Digit '6' at (1,5) → cell = 7 */
-    assert(gs.map.cells[1][5] == 7);
+    assert(map.cells[1][5] == 7);
     /* Digit '7' at (2,1) → cell = 8 */
-    assert(gs.map.cells[2][1] == 8);
+    assert(map.cells[2][1] == 8);
     /* Digit '8' at (2,2) → cell = 9 */
-    assert(gs.map.cells[2][2] == 9);
+    assert(map.cells[2][2] == 9);
     /* Digit '9' at (2,3) → cell = 10 */
-    assert(gs.map.cells[2][3] == 10);
+    assert(map.cells[2][3] == 10);
     /* Digit '0' at (2,4) → cell = 1 */
-    assert(gs.map.cells[2][4] == 1);
+    assert(map.cells[2][4] == 1);
 }
 
 static void test_fake_map_floor_cells(void)
 {
     /* Spaces and player cell are floor (cell value 0) */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     /* Player cell at (1,1) */
-    assert(gs.map.cells[1][1] == CELL_FLOOR);
+    assert(map.cells[1][1] == CELL_FLOOR);
     /* Space at (1,2) */
-    assert(gs.map.cells[1][2] == CELL_FLOOR);
+    assert(map.cells[1][2] == CELL_FLOOR);
     /* Space at (1,4) */
-    assert(gs.map.cells[1][4] == CELL_FLOOR);
+    assert(map.cells[1][4] == CELL_FLOOR);
     /* Interior floor at (3,1) */
-    assert(gs.map.cells[3][1] == CELL_FLOOR);
+    assert(map.cells[3][1] == CELL_FLOOR);
     /* Interior floor at (3,2) */
-    assert(gs.map.cells[3][2] == CELL_FLOOR);
+    assert(map.cells[3][2] == CELL_FLOOR);
 }
 
 static void test_fake_map_exit_cell(void)
 {
     /* 'F' at row 1, col 3 should be CELL_EXIT */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
-    assert(gs.map.cells[1][3] == CELL_EXIT);
+    assert(map.cells[1][3] == CELL_EXIT);
 }
 
 static void test_fake_map_player_position(void)
 {
     /* Player spawns at centre of 'P' cell (row 1, col 1) */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     ASSERT_NEAR(gs.player.x, 1.5f, 0.01f);
     ASSERT_NEAR(gs.player.y, 1.5f, 0.01f);
@@ -183,8 +191,9 @@ static void test_fake_map_player_position(void)
 static void test_fake_map_player_direction(void)
 {
     /* Player faces east by default */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     ASSERT_NEAR(gs.player.dir_x, 1.0f, 0.01f);
     ASSERT_NEAR(gs.player.dir_y, 0.0f, 0.01f);
@@ -193,8 +202,9 @@ static void test_fake_map_player_direction(void)
 static void test_fake_map_camera_plane(void)
 {
     /* Camera plane is perpendicular to direction, length = tan(FOV/2) */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     float half_fov = (FOV_DEG * 0.5f) * (PI / 180.0f);
     float expected_plane = tanf(half_fov);
@@ -206,42 +216,45 @@ static void test_fake_map_camera_plane(void)
 static void test_fake_map_walls_are_walls(void)
 {
     /* All cells with value > 0 should be walls (is_wall logic) */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     /* Check the bottom row is entirely walled */
-    for (int c = 0; c < gs.map.w; c++)
-        assert(gs.map.cells[4][c] > 0);
+    for (int c = 0; c < map.w; c++)
+        assert(map.cells[4][c] > 0);
 
     /* Check the left and right columns are walls in all rows */
-    for (int r = 0; r < gs.map.h; r++) {
-        assert(gs.map.cells[r][0] > 0);
-        assert(gs.map.cells[r][6] > 0);
+    for (int r = 0; r < map.h; r++) {
+        assert(map.cells[r][0] > 0);
+        assert(map.cells[r][6] > 0);
     }
 }
 
 static void test_fake_map_exit_is_walkable(void)
 {
     /* Exit cell value is negative, so is_wall (> 0) treats it as walkable */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
-    assert(gs.map.cells[1][3] < 0);   /* negative = not a wall */
-    assert(gs.map.cells[1][3] == CELL_EXIT);
+    assert(map.cells[1][3] < 0);   /* negative = not a wall */
+    assert(map.cells[1][3] == CELL_EXIT);
 }
 
 static void test_fake_map_all_wall_types_present(void)
 {
     /* Verify wall types 0–9 are all present somewhere in the map */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     bool found[TEX_COUNT];
     memset(found, 0, sizeof(found));
 
-    for (int r = 0; r < gs.map.h; r++) {
-        for (int c = 0; c < gs.map.w; c++) {
-            int cell = gs.map.cells[r][c];
+    for (int r = 0; r < map.h; r++) {
+        for (int c = 0; c < map.w; c++) {
+            int cell = map.cells[r][c];
             if (cell > 0) {
                 int wall_type = cell - 1;
                 if (wall_type >= 0 && wall_type < TEX_COUNT)
@@ -260,8 +273,9 @@ static void test_fake_map_all_wall_types_present(void)
 
 static void test_update_no_input(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
@@ -269,7 +283,7 @@ static void test_update_no_input(void)
     float old_x = gs.player.x;
     float old_y = gs.player.y;
 
-    rc_update(&gs, &in, 1.0f / 60.0f);
+    rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
     /* Player should not move */
     ASSERT_NEAR(gs.player.x, old_x, 0.0001f);
@@ -278,16 +292,17 @@ static void test_update_no_input(void)
 
 static void test_update_forward(void)
 {
+    Map map;
     GameState gs;
     /* Facing east in a big box, plenty of room */
-    init_box_map(&gs, 20, 20, 5.5f, 10.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 20, 20, 5.5f, 10.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
     in.forward = true;
 
     float old_x = gs.player.x;
-    rc_update(&gs, &in, 1.0f);
+    rc_update(&gs, &map, &in, 1.0f);
 
     /* Should have moved ~3.0 units east (MOVE_SPD = 3.0) */
     assert(gs.player.x > old_x);
@@ -296,15 +311,16 @@ static void test_update_forward(void)
 
 static void test_update_backward(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
     in.back = true;
 
     float old_x = gs.player.x;
-    rc_update(&gs, &in, 1.0f);
+    rc_update(&gs, &map, &in, 1.0f);
 
     /* Should have moved ~3.0 units west */
     assert(gs.player.x < old_x);
@@ -313,9 +329,10 @@ static void test_update_backward(void)
 
 static void test_update_wall_collision(void)
 {
+    Map map;
     GameState gs;
     /* Player near north wall (row 0 = wall), facing north (-y) */
-    init_box_map(&gs, 10, 10, 5.5f, 1.5f, 0.0f, -1.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 1.5f, 0.0f, -1.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
@@ -323,7 +340,7 @@ static void test_update_wall_collision(void)
 
     /* Walk into wall for a full second */
     for (int i = 0; i < 60; i++)
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
     /* Player should be stopped by the wall, not inside or beyond it */
     assert(gs.player.y > 0.5f);
@@ -331,10 +348,11 @@ static void test_update_wall_collision(void)
 
 static void test_update_wall_sliding(void)
 {
+    Map map;
     GameState gs;
     /* Facing northeast into a north wall — should slide east */
     float inv_sqrt2 = 1.0f / sqrtf(2.0f);
-    init_box_map(&gs, 20, 20, 5.5f, 1.5f, inv_sqrt2, -inv_sqrt2);
+    init_box_map(&map, &gs, 20, 20, 5.5f, 1.5f, inv_sqrt2, -inv_sqrt2);
 
     Input in;
     memset(&in, 0, sizeof(in));
@@ -342,7 +360,7 @@ static void test_update_wall_sliding(void)
 
     float old_x = gs.player.x;
     for (int i = 0; i < 60; i++)
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
     /* Should have slid east (x increased) while y stayed near wall */
     assert(gs.player.x > old_x + 0.5f);
@@ -351,14 +369,15 @@ static void test_update_wall_sliding(void)
 
 static void test_update_rotation_left(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
     in.turn_left = true;
 
-    rc_update(&gs, &in, 1.0f);
+    rc_update(&gs, &map, &in, 1.0f);
 
     /* Rotating left (counter-clockwise) should change direction */
     /* After ~2.5 radians of rotation, dir_x should be negative */
@@ -369,15 +388,16 @@ static void test_update_rotation_left(void)
 
 static void test_update_rotation_right(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
     in.turn_right = true;
 
     /* Small rotation: 1/60th second */
-    rc_update(&gs, &in, 1.0f / 60.0f);
+    rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
     /* dir_y should become positive (clockwise) */
     assert(gs.player.dir_y > 0.0f);
@@ -390,11 +410,12 @@ static void test_update_rotation_right(void)
 static void test_update_exit_cell_walkable(void)
 {
     /* Exit cell should be walkable (not treated as wall) */
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 3.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 3.5f, 5.5f, 1.0f, 0.0f);
 
     /* Place an exit cell ahead of the player */
-    gs.map.cells[5][5] = CELL_EXIT;
+    map.cells[5][5] = CELL_EXIT;
 
     Input in;
     memset(&in, 0, sizeof(in));
@@ -402,7 +423,7 @@ static void test_update_exit_cell_walkable(void)
 
     float old_x = gs.player.x;
     for (int i = 0; i < 60; i++)
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
     /* Player should have moved past the exit cell (not blocked) */
     assert(gs.player.x > 5.0f);
@@ -412,11 +433,12 @@ static void test_update_exit_cell_walkable(void)
 static void test_update_exit_triggers_game_over(void)
 {
     /* Walking onto an exit cell should set game_over */
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 4.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 4.5f, 5.5f, 1.0f, 0.0f);
 
     /* Place exit cell at col 5 */
-    gs.map.cells[5][5] = CELL_EXIT;
+    map.cells[5][5] = CELL_EXIT;
 
     assert(!gs.game_over);
 
@@ -426,7 +448,7 @@ static void test_update_exit_triggers_game_over(void)
 
     /* Walk forward until we reach the exit cell */
     for (int i = 0; i < 60; i++) {
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
         if (gs.game_over) break;
     }
 
@@ -436,11 +458,12 @@ static void test_update_exit_triggers_game_over(void)
 static void test_update_exit_requires_centre(void)
 {
     /* Entering the exit cell near its edge should not trigger game_over */
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
     /* Place exit cell at col 6, centre at (6.5, 5.5) */
-    gs.map.cells[5][6] = CELL_EXIT;
+    map.cells[5][6] = CELL_EXIT;
 
     /* Put player just inside the cell but far from centre */
     gs.player.x = 6.05f;
@@ -449,28 +472,29 @@ static void test_update_exit_requires_centre(void)
     Input in;
     memset(&in, 0, sizeof(in));
 
-    rc_update(&gs, &in, 1.0f / 60.0f);
+    rc_update(&gs, &map, &in, 1.0f / 60.0f);
     assert(!gs.game_over);
 
     /* Now move to the centre */
     gs.player.x = 6.5f;
     gs.player.y = 5.5f;
-    rc_update(&gs, &in, 1.0f / 60.0f);
+    rc_update(&gs, &map, &in, 1.0f / 60.0f);
     assert(gs.game_over);
 }
 
 static void test_update_no_exit_no_game_over(void)
 {
     /* Walking on normal floor should not set game_over */
+    Map map;
     GameState gs;
-    init_box_map(&gs, 20, 20, 5.5f, 10.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 20, 20, 5.5f, 10.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
     in.forward = true;
 
     for (int i = 0; i < 60; i++)
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
     assert(!gs.game_over);
 }
@@ -481,11 +505,12 @@ static void test_update_no_exit_no_game_over(void)
 
 static void test_cast_straight_east(void)
 {
+    Map map;
     GameState gs;
     /* 10-wide corridor, player at x=2.5 facing east, wall at x=9 */
-    init_box_map(&gs, 10, 3, 2.5f, 1.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 3, 2.5f, 1.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Centre column ray goes straight east: 9 - 2.5 = 6.5 units */
     int mid = SCREEN_W / 2;
@@ -495,11 +520,12 @@ static void test_cast_straight_east(void)
 
 static void test_cast_straight_north(void)
 {
+    Map map;
     GameState gs;
     /* Player at y=5.5 facing north (-y), wall at y=0 */
-    init_box_map(&gs, 3, 10, 1.5f, 5.5f, 0.0f, -1.0f);
+    init_box_map(&map, &gs, 3, 10, 1.5f, 5.5f, 0.0f, -1.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Centre column: 5.5 - 0 → hits north wall at y=0, dist = 4.5 */
     int mid = SCREEN_W / 2;
@@ -509,11 +535,12 @@ static void test_cast_straight_north(void)
 
 static void test_cast_close_wall(void)
 {
+    Map map;
     GameState gs;
     /* Player right next to a wall */
-    init_box_map(&gs, 10, 10, 1.5f, 5.5f, -1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 1.5f, 5.5f, -1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Centre column faces west, wall at x=0: dist = 0.5 */
     int mid = SCREEN_W / 2;
@@ -522,10 +549,11 @@ static void test_cast_close_wall(void)
 
 static void test_cast_all_columns_filled(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Every column should have a positive wall distance */
     for (int x = 0; x < SCREEN_W; x++) {
@@ -536,11 +564,12 @@ static void test_cast_all_columns_filled(void)
 
 static void test_cast_symmetry(void)
 {
+    Map map;
     GameState gs;
     /* Player centred in a symmetric box, facing east */
-    init_box_map(&gs, 11, 11, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 11, 11, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Column 0 and column SCREEN_W-1 should have similar distances
      * (mirror symmetry across the centre ray in a square room) */
@@ -551,12 +580,13 @@ static void test_cast_symmetry(void)
 
 static void test_cast_edge_distances_longer(void)
 {
+    Map map;
     GameState gs;
     /* In a box facing east, edge columns are angled so their perpendicular
      * distance to the wall should be >= the centre column distance */
-    init_box_map(&gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     int mid = SCREEN_W / 2;
     float mid_dist = gs.hits[mid].wall_dist;
@@ -573,10 +603,11 @@ static void test_cast_edge_distances_longer(void)
 
 static void test_cast_wall_x_range(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* wall_x should be in [0.0, 1.0) for all columns */
     for (int x = 0; x < SCREEN_W; x++) {
@@ -587,15 +618,16 @@ static void test_cast_wall_x_range(void)
 
 static void test_cast_wall_x_centre(void)
 {
+    Map map;
     GameState gs;
     /* Player at (2.5, 5.5) facing east in a 10×10 box.
      * Centre ray hits the east wall at x=9, y should be near 5.5.
      * wall_x = frac(5.5) = 0.5 for a y-side? No — facing east hits
      * x-side wall, so wall_x = frac(player.y + perp * ray_dy).
      * Centre ray: ray_dy ≈ 0, so wall_x ≈ frac(5.5) = 0.5 */
-    init_box_map(&gs, 10, 10, 2.5f, 5.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 10, 10, 2.5f, 5.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     int mid = SCREEN_W / 2;
     ASSERT_NEAR(gs.hits[mid].wall_x, 0.5f, 0.05f);
@@ -604,23 +636,25 @@ static void test_cast_wall_x_centre(void)
 static void test_cast_digit_wall_type(void)
 {
     /* Build a map where the east wall is cell value 6 (wall_type 5) */
+    Map map;
     GameState gs;
+    memset(&map, 0, sizeof(map));
     memset(&gs, 0, sizeof(gs));
-    gs.map.w = 10;
-    gs.map.h = 10;
+    map.w = 10;
+    map.h = 10;
 
     for (int r = 0; r < 10; r++)
         for (int c = 0; c < 10; c++)
-            gs.map.cells[r][c] = 0;
+            map.cells[r][c] = 0;
 
     /* Border walls: left/top/bottom = type 0, right = type 5 */
     for (int r = 0; r < 10; r++) {
-        gs.map.cells[r][0] = 1;      /* type 0 */
-        gs.map.cells[r][9] = 6;      /* type 5 */
+        map.cells[r][0] = 1;      /* type 0 */
+        map.cells[r][9] = 6;      /* type 5 */
     }
     for (int c = 0; c < 10; c++) {
-        gs.map.cells[0][c] = 1;
-        gs.map.cells[9][c] = 1;
+        map.cells[0][c] = 1;
+        map.cells[9][c] = 1;
     }
 
     /* Player facing east, will hit the right wall (type 5) */
@@ -632,7 +666,7 @@ static void test_cast_digit_wall_type(void)
     gs.player.plane_x = 0.0f;
     gs.player.plane_y = tanf(half_fov);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Centre column should hit the east wall (type 5) */
     int mid = SCREEN_W / 2;
@@ -641,12 +675,13 @@ static void test_cast_digit_wall_type(void)
 
 static void test_cast_side_shading(void)
 {
+    Map map;
     GameState gs;
     /* Elongated east-west corridor: edge rays hit north/south walls (y-side)
      * before reaching the far east wall. 30-wide × 5-tall forces this. */
-    init_box_map(&gs, 30, 5, 15.5f, 2.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 30, 5, 15.5f, 2.5f, 1.0f, 0.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* Centre column should be an x-side hit (straight east) */
     int mid = SCREEN_W / 2;
@@ -669,10 +704,11 @@ static void test_cast_side_shading(void)
 
 static void test_load_then_cast(void)
 {
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* All columns should produce valid hits */
     for (int x = 0; x < SCREEN_W; x++) {
@@ -683,8 +719,9 @@ static void test_load_then_cast(void)
 
 static void test_walk_and_cast(void)
 {
+    Map map;
     GameState gs;
-    init_box_map(&gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
+    init_box_map(&map, &gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
 
     Input in;
     memset(&in, 0, sizeof(in));
@@ -692,9 +729,9 @@ static void test_walk_and_cast(void)
 
     /* Walk forward for half a second then cast */
     for (int i = 0; i < 30; i++)
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
-    rc_cast(&gs);
+    rc_cast(&gs, &map);
 
     /* After walking east, the east wall should be closer */
     int mid = SCREEN_W / 2;
@@ -707,8 +744,9 @@ static void test_walk_and_cast(void)
 static void test_fake_map_exit_triggers_game_over(void)
 {
     /* Walk from player spawn towards the exit cell and confirm game_over */
+    Map map;
     GameState gs;
-    load_fake_map(&gs);
+    load_fake_map(&map, &gs);
 
     assert(!gs.game_over);
 
@@ -719,7 +757,7 @@ static void test_fake_map_exit_triggers_game_over(void)
     /* Player at (1.5, 1.5) facing east, exit at col 3, row 1.
      * Walk east until reaching exit centre (3.5, 1.5). */
     for (int i = 0; i < 120; i++) {
-        rc_update(&gs, &in, 1.0f / 60.0f);
+        rc_update(&gs, &map, &in, 1.0f / 60.0f);
         if (gs.game_over) break;
     }
 

@@ -47,9 +47,8 @@ typedef struct Map {
     int  w, h;
 } Map;
 
-/* ── Complete game state ───────────────────────────────────────────── */
+/* ── Game state (excludes map — managed separately) ───────────────── */
 typedef struct GameState {
-    Map     map;
     Player  player;
     RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
     bool    game_over;        /* true when player reaches exit cell   */
@@ -64,9 +63,9 @@ typedef struct Input {
 /* ── Public API ────────────────────────────────────────────────────── */
 
 /**  Update player position/rotation from input.  dt in seconds. */
-void rc_update(GameState *gs, const Input *in, float dt);
+void rc_update(GameState *gs, const Map *map, const Input *in, float dt);
 
 /**  Cast all rays and fill gs->hits[]. */
-void rc_cast(GameState *gs);
+void rc_cast(GameState *gs, const Map *map);
 
 #endif /* RAYCASTER_H */

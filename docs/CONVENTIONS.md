@@ -111,7 +111,7 @@ These use the `──` (U+2500) box-drawing character, not ASCII dashes. The lin
 - **4-space indentation** (no tabs in source files)
 - **K&R brace style** for functions:
   ```c
-  bool rc_load_map(GameState *gs, const char *path)
+  bool map_load(Map *map, Player *player, const char *path)
   {
       // body
   }
@@ -173,11 +173,11 @@ The codebase uses a **fail-fast, propagate-boolean** strategy. There are no exce
 ### Pattern: Return `bool`, Print to `stderr`
 
 ```c
-bool rc_load_map(GameState *gs, const char *path)
+bool map_load(Map *map, Player *player, const char *path)
 {
     FILE *fp = fopen(path, "r");
     if (!fp) {
-        fprintf(stderr, "rc_load_map: cannot open '%s'\n", path);
+        fprintf(stderr, "map_load: cannot open '%s'\n", path);
         return false;
     }
     // ...
@@ -189,8 +189,8 @@ Every error message includes the **function name** and the **offending value** f
 ### Caller Responsibility
 
 ```c
-if (!rc_load_map(&gs, map_path)) {
-    fprintf(stderr, "Failed to load map '%s'\n", map_path);
+if (!map_load(&map, &gs.player, map_path)) {
+    fprintf(stderr, "main: failed to load map '%s'\n", map_path);
     return 1;
 }
 
@@ -215,7 +215,7 @@ This is appropriate for a small game. For a larger project, consider adding `ass
 
 ### Single Source of Truth
 
-`GameState` is the entire world. It lives on `main()`'s stack and is passed by pointer to every function that needs it.
+`GameState` holds player state and the ray buffer. `Map` is a standalone struct. Both live on `main()`'s stack and are passed by pointer to functions that need them.
 
 ```mermaid
 graph LR
@@ -265,7 +265,7 @@ memset(&input, 0, sizeof(input));
 **There is no dynamic allocation.** Zero calls to `malloc`, `calloc`, `realloc`, or `free` in the entire codebase.
 
 All data lives in:
-- `GameState` on `main()`'s stack (includes the 64×64 map and 800-element ray buffer)
+- `GameState` and `Map` on `main()`'s stack (Map includes the 64×64 grid; GameState includes the 800-element ray buffer)
 - File-scoped statics in `platform_sdl.c` (SDL handles)
 - Local variables in functions
 
@@ -288,8 +288,8 @@ make test        # Build and run all tests (no SDL required)
 ```
 
 Tests live in two files:
-- `test_raycaster.c` — links against `raycaster.o` and `fake_map.o` (a hardcoded test map). Filesystem-independent.
-- `test_map_loader.c` — links against `raycaster.o` and `map.o` (the real file loader). Requires `map.txt` in the working directory.
+- `test_raycaster.c` — links against `raycaster.o` and `fake_map_manager.o` (a hardcoded test map). Filesystem-independent.
+- `test_map_loader.c` — links against `raycaster.o` and `map_manager.o` (the real file loader). Requires `map.txt` in the working directory.
 
 Both have no SDL dependency. Run from the project root with `make test`.
 
@@ -307,7 +307,7 @@ Exit code is `0` on all-pass, `1` on any failure — compatible with CI.
 Tests build game state programmatically using `init_box_map()` — a helper that creates a walled box of any size with the player at a specified position and direction. The camera plane is auto-derived from `FOV_DEG`:
 
 ```c
-static void init_box_map(GameState *gs, int w, int h,
+static void init_box_map(Map *map, GameState *gs, int w, int h,
                          float px, float py,
                          float dir_x, float dir_y)
 ```
@@ -320,7 +320,7 @@ This avoids depending on `map.txt` for most tests. Only `test_load_map_*` and `t
 2. Use `init_box_map()` for geometry setup, or `rc_load_map()` for file-based tests
 3. Use `ASSERT_NEAR()` for distance comparisons (raycasting has float imprecision)
 4. Add `RUN_TEST(test_your_name);` to `main()`
-5. For tests that need a known map, use the fake map module (`fake_map.c`) via `map_load()` in `test_raycaster.c`
+5. For tests that need a known map, use the fake map module (`fake_map_manager.c`) via `map_load()` in `test_raycaster.c`
 6. For tests that exercise the real file parser, add them to `test_map_loader.c` — avoid assuming specific map contents
 7. Run `make test` — zero warnings required, zero failures expected
 
@@ -387,7 +387,7 @@ If someone ports the engine to a different backend, only `platform_*.c` files sh
 Functions that only read a struct take `const *`. Functions that write take non-const `*`. This is enforced consistently:
 
 ```c
-void rc_update(GameState *gs, const Input *in, float dt);  // writes gs, reads in
+void rc_update(GameState *gs, const Map *map, const Input *in, float dt);  // writes gs, reads map & in
 void platform_render(const GameState *gs);                  // reads gs only
 bool platform_poll_input(Input *in);                        // writes in
 ```
@@ -428,7 +428,7 @@ All `fprintf(stderr, ...)` messages follow a consistent, grep-able format:
 
 Examples:
 ```c
-fprintf(stderr, "rc_load_map: cannot open '%s'\n", path);
+fprintf(stderr, "map_load: cannot open '%s'\n", path);
 fprintf(stderr, "platform_init: SDL_Init failed: %s\n", SDL_GetError());
 fprintf(stderr, "main: failed to load map '%s'\n", map_path);
 ```
