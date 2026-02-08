@@ -1,4 +1,4 @@
-/*  fake_map_manager.c  –  test-only map loader with hardcoded map
+/*  map_manager_fake.c  –  test-only map loader with hardcoded map
  *  ───────────────────────────────────────────────────────────────
  *  Provides a map_load() implementation that ignores the file path
  *  and returns a small hardcoded map containing every cell type.
@@ -18,7 +18,7 @@
  *  Exit cell:    (3, 1)
  *  Wall types present: 0 (X/#), 1–9 (digits)
  */
-#include "map.h"
+#include "map_manager.h"
 #include "raycaster.h"
 
 #include <math.h>

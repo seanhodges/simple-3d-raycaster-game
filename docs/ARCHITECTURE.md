@@ -34,7 +34,7 @@ graph TB
 
     subgraph "Layer 2 — Platform"
         PLAT["platform_sdl.c / .h<br/>SDL3 window, input, rendering"]
-        TEX["texture.c / .h<br/>Texture atlas manager"]
+        TEX["textures_sdl.c / .h<br/>Texture atlas manager"]
     end
 
     subgraph "External"
@@ -51,7 +51,7 @@ graph TB
     TEX --> SDL3
     TEX --> BMP
     subgraph "Layer 1b — Map Loader"
-        MAPMOD["map_manager.c / .h<br/>ASCII map parser"]
+        MAPMOD["map_manager_ascii.c / map_manager.h<br/>ASCII map parser"]
     end
 
     MAIN --> MAPMOD
@@ -91,14 +91,14 @@ Responsibilities:
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
 - **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer
 
-### Map Loader (`map_manager.c` / `map.h`)
+### Map Loader (`map_manager_ascii.c` / `map_manager.h`)
 
 **Design pattern: File Parser Module** — separated from the core engine to allow test-time substitution with a fake implementation.
 
 Responsibilities:
 - **Map loading** (`map_load`) — parse the ASCII map file into a standalone `Map` struct and initialise the `Player` position and camera
 
-For unit tests, `fake_map_manager.c` provides an alternative `map_load` implementation that returns a hardcoded map with all cell types, removing filesystem dependencies from the core test suite.
+For unit tests, `map_manager_fake.c` provides an alternative `map_load` implementation that returns a hardcoded map with all cell types, removing filesystem dependencies from the core test suite.
 
 This separation is an important architectural decision in the project. It means:
 - The core engine can be unit-tested without a display
@@ -116,7 +116,7 @@ Responsibilities:
 
 The platform layer **reads from** the core but never writes to it, except through the `Input` struct. Data flows in one direction.
 
-### Texture Manager (`texture.c` / `texture.h`)
+### Texture Manager (`textures_sdl.c` / `textures_sdl.h`)
 
 **Design pattern: Asset Manager** — loads and provides pixel-level access to wall textures.
 

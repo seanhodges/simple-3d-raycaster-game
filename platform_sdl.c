@@ -5,7 +5,7 @@
  */
 #include "platform_sdl.h"
 #include "raycaster.h"
-#include "texture.h"
+#include "textures_sdl.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>

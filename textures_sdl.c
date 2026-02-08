@@ -1,9 +1,9 @@
-/*  texture.c  –  texture atlas manager
+/*  textures_sdl.c  –  texture atlas manager
  *  ────────────────────────────────────
  *  Loads a horizontal strip of TEX_COUNT square textures from a BMP
  *  file.  Falls back to a solid wall colour if the file is missing.
  */
-#include "texture.h"
+#include "textures_sdl.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>

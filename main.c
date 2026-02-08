@@ -2,9 +2,9 @@
  *  ───────────────────────────────────────────────
  */
 #include "raycaster.h"
-#include "map.h"
+#include "map_manager.h"
 #include "platform_sdl.h"
-#include "texture.h"
+#include "textures_sdl.h"
 
 #include <stdio.h>
 #include <string.h>

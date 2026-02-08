@@ -29,10 +29,10 @@ make test         # Build and run all unit tests (no SDL required)
 ```
 
 Tests are split across two files:
-- `test_raycaster.c` — links against `raycaster.o` and `fake_map_manager.o`. Uses a hardcoded test map with all cell types. Covers map structure validation, player movement/collision, DDA raycasting, and integration scenarios. No filesystem dependency.
-- `test_map_loader.c` — links against `raycaster.o` and `map_manager.o`. Tests the real file parser with `map.txt` without assuming specific map contents.
+- `test_raycaster.c` — links against `raycaster.o` and `map_manager_fake.o`. Uses a hardcoded test map with all cell types. Covers map structure validation, player movement/collision, DDA raycasting, and integration scenarios. No filesystem dependency.
+- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o`. Tests the real file parser with `map.txt` without assuming specific map contents.
 
-Run from the project root (test_map_loader needs `map.txt` in the working directory).
+Run from the project root (test_map_manager_ascii needs `map.txt` in the working directory).
 
 ## Controls
 

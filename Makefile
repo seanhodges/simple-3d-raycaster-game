@@ -9,7 +9,7 @@
 # ──────────────────────────────────────────────────────────────────────
 
 TARGET   = raycaster
-SRCS     = main.c raycaster.c map_manager.c platform_sdl.c texture.c
+SRCS     = main.c raycaster.c map_manager_ascii.c platform_sdl.c textures_sdl.c
 OBJS     = $(SRCS:.c=.o)
 
 CC       ?= gcc
@@ -44,37 +44,37 @@ endif
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c game_globals.h raycaster.h platform_sdl.h texture.h map.h
+%.o: %.c game_globals.h raycaster.h platform_sdl.h textures_sdl.h map_manager.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	$(RM) $(OBJS) $(TARGET) raycaster.exe \
-	      test_raycaster test_raycaster.o fake_map_manager.o \
-	      test_map_loader test_map_loader.o
+	      test_raycaster test_raycaster.o map_manager_fake.o \
+	      test_map_manager_ascii test_map_manager_ascii.o
 
 # ── Tests ─────────────────────────────────────────────────────────────
 
-# Unit tests link against fake_map_manager.o (hardcoded test map, no filesystem)
+# Unit tests link against map_manager_fake.o (hardcoded test map, no filesystem)
 TEST_TARGET     = test_raycaster
-TEST_ML_TARGET  = test_map_loader
+TEST_ML_TARGET  = test_map_manager_ascii
 
 test: $(TEST_TARGET) $(TEST_ML_TARGET)
 	./$(TEST_TARGET)
 	./$(TEST_ML_TARGET)
 
-$(TEST_TARGET): test_raycaster.o raycaster.o fake_map_manager.o
+$(TEST_TARGET): test_raycaster.o raycaster.o map_manager_fake.o
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
-$(TEST_ML_TARGET): test_map_loader.o raycaster.o map_manager.o
+$(TEST_ML_TARGET): test_map_manager_ascii.o raycaster.o map_manager_ascii.o
 	$(CC) $(CFLAGS) -o $@ $^ -lm
 
-test_raycaster.o: test_raycaster.c game_globals.h raycaster.h map.h
+test_raycaster.o: test_raycaster.c game_globals.h raycaster.h map_manager.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-test_map_loader.o: test_map_loader.c game_globals.h raycaster.h map.h
+test_map_manager_ascii.o: test_map_manager_ascii.c game_globals.h raycaster.h map_manager.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-fake_map_manager.o: fake_map_manager.c game_globals.h raycaster.h map.h
+map_manager_fake.o: map_manager_fake.c game_globals.h raycaster.h map_manager.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 all: $(TARGET)

@@ -1,14 +1,14 @@
-/*  test_map_loader.c  –  tests for the real map file loader
- *  ──────────────────────────────────────────────────────
- *  Links against raycaster.o and map_manager.o — no SDL dependency.
+/*  test_map_manager_ascii.c  –  tests for the real map file loader
+ *  ──────────────────────────────────────────────────────────────────
+ *  Links against raycaster.o and map_manager_ascii.o — no SDL dependency.
  *  Tests that map_load() can successfully read map.txt without
  *  making assumptions about the map's specific contents.
  *  Run from the project root (needs map.txt in the working directory).
  *  Build:  make test
- *  Run:    ./test_map_loader
+ *  Run:    ./test_map_manager_ascii
  */
 #include "raycaster.h"
-#include "map.h"
+#include "map_manager.h"
 
 #include <assert.h>
 #include <math.h>

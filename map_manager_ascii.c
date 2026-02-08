@@ -3,7 +3,7 @@
  *  Loads ASCII map files into a Map struct and sets the Player spawn.
  *  No SDL headers.  Pure C + math.
  */
-#include "map.h"
+#include "map_manager.h"
 #include "raycaster.h"
 
 #include <math.h>
