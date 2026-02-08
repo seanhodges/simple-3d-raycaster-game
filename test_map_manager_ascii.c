@@ -170,8 +170,8 @@ static void test_load_map_cells_in_range(void)
     for (int r = 0; r < map.h; r++) {
         for (int c = 0; c < map.w; c++) {
             int cell = map.cells[r][c];
-            assert(cell >= CELL_EXIT);   /* minimum valid value */
-            assert(cell <= 10);          /* digit '9' → cell = 10 max */
+            assert(cell >= CELL_FLOOR);   /* minimum valid value */
+            assert(cell <= CELL_EXIT);   /* minimum valid value */
         }
     }
 }

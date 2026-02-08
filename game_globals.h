@@ -2,6 +2,7 @@
 #define GAME_GLOBALS_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 /* ── Display constants (needed by GameState) ──────────────────────── */
 #define SCREEN_W  800
@@ -13,10 +14,10 @@
 
 /* ── Per-column ray result ─────────────────────────────────────────── */
 typedef struct RayHit {
-    float wall_dist;     /* perpendicular distance to wall          */
-    float wall_x;        /* where on the wall face the ray hit 0-1  */
-    int   side;          /* 0 = x-side hit, 1 = y-side hit          */
-    int   wall_type;     /* texture index (0 .. TEX_COUNT-1)        */
+    float    wall_dist;     /* perpendicular distance to wall          */
+    float    wall_x;        /* where on the wall face the ray hit 0-1  */
+    int      side;          /* 0 = x-side hit, 1 = y-side hit          */
+    uint16_t wall_type;     /* texture index (0 .. TEX_COUNT-1)        */
 } RayHit;
 
 /* ── Player state ──────────────────────────────────────────────────── */
@@ -28,8 +29,8 @@ typedef struct Player {
 
 /* ── World map ─────────────────────────────────────────────────────── */
 typedef struct Map {
-    int  cells[MAP_MAX_H][MAP_MAX_W];
-    int  w, h;
+    uint16_t  cells[MAP_MAX_H][MAP_MAX_W];
+    int       w, h;
 } Map;
 
 /* ── Game state (excludes map — managed separately) ───────────────── */

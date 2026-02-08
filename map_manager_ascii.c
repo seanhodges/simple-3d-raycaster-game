@@ -47,7 +47,7 @@ bool map_load(Map *map, Player *player, const char *path)
                 player->y = row + 0.5f;
                 player_set = true;
             } else if (c == 'F' || c == 'f') {
-                map->cells[row][col] = CELL_EXIT;   /* exit trigger */
+                map->cells[row][col] = CELL_EXIT;   /* exit trigger (TODO(sean): replace me) */
             } else {
                 map->cells[row][col] = CELL_FLOOR;  /* empty */
             }

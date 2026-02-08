@@ -15,13 +15,13 @@
 
 /**  Check if a position is inside a wall.
  *   Returns true for walls (cell > 0) and out-of-bounds positions.
- *   Floor cells (cell == 0) and special floor cells (cell < 0) are walkable. */
+ *   Floor cells (cell == 0) and special floor cells (cell == 65535) are walkable. */
 static bool is_wall(const Map *m, float x, float y)
 {
     int mx = (int)x;
     int my = (int)y;
     if (mx < 0 || my < 0 || mx >= m->w || my >= m->h) return true;
-    return m->cells[my][mx] > 0;
+    return m->cells[my][mx] > 0 && m->cells[my][mx] < 65535;
 }
 
 void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
@@ -73,6 +73,7 @@ void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
     int cy = (int)p->y;
     if (cx >= 0 && cy >= 0 && cx < map->w && cy < map->h
         && map->cells[cy][cx] == CELL_EXIT) {
+
         float centre_x = cx + 0.5f;
         float centre_y = cy + 0.5f;
         float ex = p->x - centre_x;
@@ -153,10 +154,10 @@ void rc_cast(GameState *gs, const Map *map)
                 map_y   += step_y;
                 side = 1;                 /* hit a horizontal wall face */
             }
-            /* Check if we hit a wall (cell > 0) or went out of bounds */
+            /* Check if we hit a wall or went out of bounds */
             if (map_x < 0 || map_y < 0 || map_x >= map->w || map_y >= map->h) {
                 hit = true;                    /* out of bounds = wall */
-            } else if (map->cells[map_y][map_x] > 0) {
+            } else if (map->cells[map_y][map_x] > CELL_FLOOR && map->cells[map_y][map_x] < CELL_EXIT) {
                 hit = true;
             }
         }

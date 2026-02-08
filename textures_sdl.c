@@ -8,6 +8,7 @@
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 /* ── Internal pixel buffer ────────────────────────────────────────── */
 
@@ -88,12 +89,12 @@ void tm_shutdown(void)
     initialised = false;
 }
 
-unsigned int tm_get_pixel(int wall_type, int tex_x, int tex_y)
+unsigned int tm_get_pixel(uint16_t wall_type, int tex_x, int tex_y)
 {
     if (!initialised || !atlas_loaded) return COL_WALL;
 
     /* Clamp inputs */
-    if (wall_type < 0)          wall_type = 0;
+    if (wall_type < 0) wall_type = 0;
     if (wall_type >= TEX_COUNT) wall_type = TEX_COUNT - 1;
     if (tex_x < 0)             tex_x = 0;
     if (tex_x >= TEX_SIZE)     tex_x = TEX_SIZE - 1;

@@ -8,7 +8,9 @@
 
 /* ── Special cell values ──────────────────────────────────────────── */
 #define CELL_FLOOR  0            /* empty floor                        */
-#define CELL_EXIT  -1            /* exit trigger (walkable floor)      */
+
+/* TODO(sean): Replace special cells like CELL_EXIT with a proper trigger in a dedicated map plane */
+#define CELL_EXIT  65535         /* exit trigger (walkable floor)      */
 
 /* ── Public API ────────────────────────────────────────────────────── */
 

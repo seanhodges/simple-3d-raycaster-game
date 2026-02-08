@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #define PI 3.14159265358979323846f
@@ -216,7 +217,7 @@ static void test_fake_map_camera_plane(void)
 
 static void test_fake_map_walls_are_walls(void)
 {
-    /* All cells with value > 0 should be walls (is_wall logic) */
+    /* All cells with value > 0 and < 65535 should be walls (is_wall logic) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -234,12 +235,12 @@ static void test_fake_map_walls_are_walls(void)
 
 static void test_fake_map_exit_is_walkable(void)
 {
-    /* Exit cell value is negative, so is_wall (> 0) treats it as walkable */
+    /* Exit cell value is 65535, so is_wall (> 0 && < 65535) treats it as walkable */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
 
-    assert(map.cells[1][3] < 0);   /* negative = not a wall */
+    assert(map.cells[1][3] == 65535);   /* special non-wall cell */
     assert(map.cells[1][3] == CELL_EXIT);
 }
 
@@ -257,7 +258,7 @@ static void test_fake_map_all_wall_types_present(void)
         for (int c = 0; c < map.w; c++) {
             int cell = map.cells[r][c];
             if (cell > 0) {
-                int wall_type = cell - 1;
+                uint16_t wall_type = cell - 1;
                 if (wall_type >= 0 && wall_type < TEX_COUNT)
                     found[wall_type] = true;
             }
