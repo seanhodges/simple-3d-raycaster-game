@@ -1,8 +1,14 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include "raycaster.h"
 #include <stdbool.h>
+
+/* ── Texture constants ────────────────────────────────────────────── */
+#define TEX_SIZE  64             /* width & height of one texture tile */
+#define TEX_COUNT 10             /* number of textures in the atlas    */
+
+/* ── Fallback colour (RGBA8888) ───────────────────────────────────── */
+#define COL_WALL  0x00008BFF     /* dark blue used when BMP fails to load */
 
 /**  Load texture atlas from a BMP file. Falls back to a solid wall
  *   colour (COL_WALL) if the file cannot be loaded. Returns false

@@ -8,6 +8,7 @@
  */
 #include "raycaster.h"
 #include "map.h"
+#include "texture.h"
 
 #include <assert.h>
 #include <math.h>

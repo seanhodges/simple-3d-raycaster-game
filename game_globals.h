@@ -5,6 +5,7 @@
 
 /* ── Display constants (needed by GameState) ──────────────────────── */
 #define SCREEN_W  800
+#define SCREEN_H  600
 
 /* ── Map limits ────────────────────────────────────────────────────── */
 #define MAP_MAX_W 64
