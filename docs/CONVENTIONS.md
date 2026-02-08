@@ -27,7 +27,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 | `rc_` | Core raycasting engine | `rc_load_map`, `rc_update`, `rc_cast` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
 | `tm_` | Texture manager | `tm_init`, `tm_shutdown`, `tm_get_pixel` |
-| *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c), `rgba` (static in platform_sdl.c) |
+| *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
 
 **Rule:** Every public function must carry its layer prefix. Static (file-private) helper functions do not need a prefix.
 
@@ -35,7 +35,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 
 - **Descriptive names** for domain concepts: `wall_dist`, `draw_start`, `line_h`, `cam_x`
 - **Short names** only for well-understood math: `c`/`s` for cos/sin, `dx`/`dy` for deltas, `p` for player pointer, `m` for map pointer
-- **Struct members** use `snake_case`: `dir_x`, `plane_y`, `wall_type`, `strafe_left`
+- **Struct members** use `snake_case`: `dir_x`, `plane_y`, `wall_type`
 
 ### Constants
 
@@ -140,8 +140,6 @@ float plane_x, plane_y;      /* camera plane (perpendicular)      */
 ```c
 in->forward      = ks[SDL_SCANCODE_W] || ks[SDL_SCANCODE_UP];
 in->back         = ks[SDL_SCANCODE_S] || ks[SDL_SCANCODE_DOWN];
-in->strafe_left  = ks[SDL_SCANCODE_A];
-in->strafe_right = ks[SDL_SCANCODE_D];
 ```
 
 This visual alignment is intentional and should be maintained when adding new fields.

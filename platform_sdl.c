@@ -16,15 +16,6 @@ static SDL_Window   *window   = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture  *fb_tex   = NULL;  /* streaming framebuffer       */
 
-/* ── Helpers: unpack RGBA8888 → 0-255 components ──────────────────── */
-static void rgba(unsigned int c, int *r, int *g, int *b, int *a)
-{
-    *r = (c >> 24) & 0xFF;
-    *g = (c >> 16) & 0xFF;
-    *b = (c >>  8) & 0xFF;
-    *a =  c        & 0xFF;
-}
-
 /* ── Public API ────────────────────────────────────────────────────── */
 
 bool platform_init(const char *title)
@@ -80,10 +71,8 @@ bool platform_poll_input(Input *in)
 
     in->forward      = ks[SDL_SCANCODE_W] || ks[SDL_SCANCODE_UP];
     in->back         = ks[SDL_SCANCODE_S] || ks[SDL_SCANCODE_DOWN];
-    in->strafe_left  = ks[SDL_SCANCODE_A];
-    in->strafe_right = ks[SDL_SCANCODE_D];
-    in->turn_left    = ks[SDL_SCANCODE_LEFT];
-    in->turn_right   = ks[SDL_SCANCODE_RIGHT];
+    in->turn_left    = ks[SDL_SCANCODE_LEFT] || ks[SDL_SCANCODE_A];
+    in->turn_right   = ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D];
 
     return true;   /* keep running */
 }
@@ -170,7 +159,7 @@ void platform_render(const GameState *gs)
 
 /* ── End-screen rendering ─────────────────────────────────────────── */
 
-void platform_render_end_screen(const GameState *gs)
+void platform_render_end_screen(void)
 {
     /* Blank the screen */
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);

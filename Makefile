@@ -39,7 +39,17 @@ ifneq (,$(findstring MINGW,$(OS)))
   LDFLAGS += -lSDL3 -lm
 endif
 
-# ── Test (no SDL dependency) ──────────────────────────────────────────
+# ── Rules ─────────────────────────────────────────────────────────────
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+%.o: %.c raycaster.h platform_sdl.h texture.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	$(RM) $(OBJS) $(TEST_OBJS) $(TARGET) $(TEST_TARGET) raycaster.exe texture.o
+
+# ── Test ───────────────────────────────────────────────────────────────
 TEST_TARGET = test_raycaster
 TEST_SRCS   = test_raycaster.c raycaster.c
 TEST_OBJS   = $(TEST_SRCS:.c=.o)
@@ -53,16 +63,6 @@ $(TEST_TARGET): test_raycaster.o raycaster.o
 test_raycaster.o: test_raycaster.c raycaster.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# ── Rules ─────────────────────────────────────────────────────────────
 all: $(TARGET)
-
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-%.o: %.c raycaster.h platform_sdl.h texture.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-clean:
-	$(RM) $(OBJS) $(TEST_OBJS) $(TARGET) $(TEST_TARGET) raycaster.exe texture.o
 
 .PHONY: all test clean

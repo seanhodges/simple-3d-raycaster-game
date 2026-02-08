@@ -1,6 +1,6 @@
-# Simple 3D Raycaster Game
+# Simple 3D Maze Game
 
-A lightweight 3D-style raycaster engine.
+A lightweight raycaster engine featuring a simple 3D-style maze game.
 
 ## Controls
 
@@ -8,9 +8,8 @@ A lightweight 3D-style raycaster engine.
 |-----------------|---------------|
 | W / ↑           | Move forward  |
 | S / ↓           | Move backward |
-| A               | Strafe left   |
-| D               | Strafe right  |
-| ← →             | Turn          |
+| A / ←           | Turn left     |
+| D / →           | Turn right    |
 | Escape          | Quit          |
 
 ## Building

@@ -114,14 +114,6 @@ void rc_update(GameState *gs, const Input *in, float dt)
         dx -= p->dir_x * MOVE_SPD * dt;
         dy -= p->dir_y * MOVE_SPD * dt;
     }
-    if (in->strafe_left) {
-        dx -= p->plane_x * MOVE_SPD * dt;
-        dy -= p->plane_y * MOVE_SPD * dt;
-    }
-    if (in->strafe_right) {
-        dx += p->plane_x * MOVE_SPD * dt;
-        dy += p->plane_y * MOVE_SPD * dt;
-    }
 
     /* Slide along walls: test each axis independently with margin */
     if (!is_wall(m, p->x + dx + (dx > 0 ? COL_MARGIN : -COL_MARGIN), p->y))

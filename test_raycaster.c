@@ -238,22 +238,6 @@ static void test_update_backward(void)
     ASSERT_NEAR(old_x - gs.player.x, 3.0f, 0.01f);
 }
 
-static void test_update_strafe(void)
-{
-    GameState gs;
-    /* Facing east → strafe right should move south (+y) */
-    init_box_map(&gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
-
-    Input in;
-    memset(&in, 0, sizeof(in));
-    in.strafe_right = true;
-
-    float old_y = gs.player.y;
-    rc_update(&gs, &in, 1.0f);
-
-    assert(gs.player.y > old_y);
-}
-
 static void test_update_wall_collision(void)
 {
     GameState gs;
@@ -667,7 +651,6 @@ int main(void)
     RUN_TEST(test_update_no_input);
     RUN_TEST(test_update_forward);
     RUN_TEST(test_update_backward);
-    RUN_TEST(test_update_strafe);
     RUN_TEST(test_update_wall_collision);
     RUN_TEST(test_update_wall_sliding);
     RUN_TEST(test_update_rotation_left);

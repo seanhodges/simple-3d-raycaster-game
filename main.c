@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
     /* End-game screen */
     if (gs.game_over) {
-        platform_render_end_screen(&gs);
+        platform_render_end_screen();
         bool waiting = true;
         while (waiting) {
             waiting = platform_poll_end_input();

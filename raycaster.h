@@ -57,7 +57,7 @@ typedef struct GameState {
 
 /* ── Input flags (set by platform layer) ───────────────────────────── */
 typedef struct Input {
-    bool forward, back, strafe_left, strafe_right;
+    bool forward, back;
     bool turn_left, turn_right;
 } Input;
 

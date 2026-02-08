@@ -365,8 +365,6 @@ classDiagram
     class Input {
         bool forward
         bool back
-        bool strafe_left
-        bool strafe_right
         bool turn_left
         bool turn_right
     }
