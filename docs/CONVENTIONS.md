@@ -28,7 +28,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 | `map_` | Map file loader | `map_load` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
 | `tm_` | Texture manager | `tm_init_tiles`, `tm_init_sprites`, `tm_shutdown`, `tm_get_tile_pixel`, `tm_get_sprite_pixel` |
-| `sprites_` | Sprite system | `sprites_collect_and_sort` |
+| `sprites_` | Sprite system | `sprites_sort` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
 
 **Rule:** Every public function must carry its layer prefix. Static (file-private) helper functions do not need a prefix.
@@ -47,7 +47,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 - **Color constants** prefixed with `COL_`: `COL_CEIL`, `COL_FLOOR`, `COL_WALL`, `COL_WALL_SHADE`
 - **Physics constants** use descriptive suffixes: `MOVE_SPD`, `ROT_SPD`, `TICK_RATE`
 - **Sprite constants** prefixed with `SPRITE_`: `SPRITE_EMPTY`, `SPRITE_TEX_COUNT`, `SPRITE_ALPHA_KEY`
-- **Limit constants** use `MAX_` prefix: `MAX_FRAME`
+- **Limit constants** use `MAX_` prefix: `MAX_VISIBLE_SPRITES`, `MAX_FRAME`
 
 ### Types
 
@@ -396,7 +396,7 @@ Functions that only read a struct take `const *`. Functions that write take non-
 
 ```c
 void rc_update(GameState *gs, const Map *map, const Input *in, float dt);  // writes gs, reads map & in
-void platform_render(const GameState *gs, const Map *map);   // reads gs and map
+void platform_render(const GameState *gs);                     // reads gs only
 bool platform_poll_input(Input *in);                        // writes in
 ```
 

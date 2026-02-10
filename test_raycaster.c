@@ -773,25 +773,23 @@ static void test_fake_map_endgame_triggers_game_over(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  Sprite collect-and-sort tests                                      */
+/*  Sprite visibility tests (collected during rc_cast)                 */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 static void test_sprites_collect_empty(void)
 {
-    /* Empty sprite plane should return count 0 */
+    /* Empty sprite plane: rc_cast should collect 0 visible sprites */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    Player p = gs.player;
-    Sprite out[16];
-    int n = sprites_collect_and_sort(&map, &p, out, 16);
-    assert(n == 0);
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 0);
 }
 
 static void test_sprites_collect_back_to_front(void)
 {
-    /* Three sprites at different distances should sort farthest first */
+    /* Three sprites ahead of the player should be sorted farthest first */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 20, 20, 5.5f, 5.5f, 1.0f, 0.0f);
@@ -801,35 +799,31 @@ static void test_sprites_collect_back_to_front(void)
     map.sprites[5][15] = 2;  /* farthest, tex 1 */
     map.sprites[5][10] = 3;  /* middle,   tex 2 */
 
-    Player p = gs.player;
-    Sprite out[16];
-    int n = sprites_collect_and_sort(&map, &p, out, 16);
-    assert(n == 3);
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 3);
 
-    /* First should be farthest (col 15, dist ~10) */
-    ASSERT_NEAR(out[0].x, 15.5f, 0.01f);
-    /* Second should be middle (col 10, dist ~5) */
-    ASSERT_NEAR(out[1].x, 10.5f, 0.01f);
-    /* Last should be closest (col 7, dist ~2) */
-    ASSERT_NEAR(out[2].x, 7.5f, 0.01f);
+    /* First should be farthest (col 15, perp ~10) */
+    ASSERT_NEAR(gs.visible_sprites[0].x, 15.5f, 0.01f);
+    /* Second should be middle (col 10, perp ~5) */
+    ASSERT_NEAR(gs.visible_sprites[1].x, 10.5f, 0.01f);
+    /* Last should be closest (col 7, perp ~2) */
+    ASSERT_NEAR(gs.visible_sprites[2].x, 7.5f, 0.01f);
 }
 
 static void test_sprites_collect_single(void)
 {
-    /* Single sprite should be collected correctly */
+    /* Single sprite ahead should be collected with correct position/texture */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
     map.sprites[5][7] = 1;  /* tex_id 0 */
 
-    Player p = gs.player;
-    Sprite out[16];
-    int n = sprites_collect_and_sort(&map, &p, out, 16);
-    assert(n == 1);
-    ASSERT_NEAR(out[0].x, 7.5f, 0.01f);
-    ASSERT_NEAR(out[0].y, 5.5f, 0.01f);
-    assert(out[0].texture_id == 0);
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 1);
+    ASSERT_NEAR(gs.visible_sprites[0].x, 7.5f, 0.01f);
+    ASSERT_NEAR(gs.visible_sprites[0].y, 5.5f, 0.01f);
+    assert(gs.visible_sprites[0].texture_id == 0);
 }
 
 static void test_sprites_collect_texture_ids(void)
@@ -839,13 +833,59 @@ static void test_sprites_collect_texture_ids(void)
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    map.sprites[3][3] = 4;  /* tex_id 3 */
+    /* Place sprite ahead of the player at (7,5) */
+    map.sprites[5][7] = 4;  /* tex_id 3 */
 
-    Player p = gs.player;
-    Sprite out[16];
-    int n = sprites_collect_and_sort(&map, &p, out, 16);
-    assert(n == 1);
-    assert(out[0].texture_id == 3);
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 1);
+    assert(gs.visible_sprites[0].texture_id == 3);
+}
+
+static void test_sprites_perp_dist_stored(void)
+{
+    /* Collected sprites should have positive perp_dist */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 20, 20, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    map.sprites[5][10] = 1;  /* 5 units ahead */
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 1);
+    /* Sprite at (10.5, 5.5), player at (5.5, 5.5) facing east:
+     * perpendicular distance ≈ 5.0 */
+    assert(gs.visible_sprites[0].perp_dist > 0.0f);
+    ASSERT_NEAR(gs.visible_sprites[0].perp_dist, 5.0f, 0.5f);
+}
+
+static void test_sprites_behind_not_collected(void)
+{
+    /* Sprites behind the camera should not be collected */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
+
+    /* Place sprite behind the player (to the west) */
+    map.sprites[10][3] = 1;
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 0);
+}
+
+static void test_sprites_sort_direct(void)
+{
+    /* Test sprites_sort directly on a pre-built array */
+    Sprite arr[3];
+    arr[0] = (Sprite){1.0f, 1.0f, 2.0f, 0};   /* closest */
+    arr[1] = (Sprite){5.0f, 5.0f, 10.0f, 1};   /* farthest */
+    arr[2] = (Sprite){3.0f, 3.0f, 5.0f, 2};    /* middle */
+
+    sprites_sort(arr, 3);
+
+    /* Should be sorted farthest first */
+    ASSERT_NEAR(arr[0].perp_dist, 10.0f, 0.01f);
+    ASSERT_NEAR(arr[1].perp_dist, 5.0f, 0.01f);
+    ASSERT_NEAR(arr[2].perp_dist, 2.0f, 0.01f);
 }
 
 static void test_fake_map_has_sprites(void)
@@ -940,11 +980,14 @@ int main(void)
     RUN_TEST(test_walk_and_cast);
     RUN_TEST(test_fake_map_endgame_triggers_game_over);
 
-    printf("\n── sprites_collect_and_sort ─────────────────────────────\n");
+    printf("\n── sprite visibility ───────────────────────────────────\n");
     RUN_TEST(test_sprites_collect_empty);
     RUN_TEST(test_sprites_collect_back_to_front);
     RUN_TEST(test_sprites_collect_single);
     RUN_TEST(test_sprites_collect_texture_ids);
+    RUN_TEST(test_sprites_perp_dist_stored);
+    RUN_TEST(test_sprites_behind_not_collected);
+    RUN_TEST(test_sprites_sort_direct);
     RUN_TEST(test_fake_map_has_sprites);
 
     printf("\n── z-buffer ────────────────────────────────────────────\n");

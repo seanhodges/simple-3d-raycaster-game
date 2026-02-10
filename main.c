@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 
         /* Render at display rate */
         rc_cast(&gs, &map);
-        platform_render(&gs, &map);
+        platform_render(&gs);
 
         /* Player reached the endgame trigger */
         if (gs.game_over) running = false;

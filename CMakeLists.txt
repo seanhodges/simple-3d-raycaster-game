@@ -86,6 +86,7 @@ add_test(NAME test_raycaster COMMAND test_raycaster)
 add_executable(test_map_manager_ascii
     test_map_manager_ascii.c
     raycaster.c
+    sprites.c
     map_manager_ascii.c
 )
 target_link_libraries(test_map_manager_ascii PRIVATE m)

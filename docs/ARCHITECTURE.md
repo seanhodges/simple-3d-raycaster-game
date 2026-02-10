@@ -91,7 +91,7 @@ graph TB
 
 Responsibilities:
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
-- **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer
+- **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer and collects visible sprites from the map grid during traversal
 
 ### Map Loader (`map_manager_ascii.c` / `map_manager.h`)
 
@@ -136,16 +136,17 @@ The texture manager also handles sprite textures via `tm_init_sprites()` and `tm
 **Design pattern: Pure Computation Module** — like `raycaster.c`, this file has zero platform dependencies.
 
 Responsibilities:
-- Collect visible sprites from the map's sprite plane grid (`Map.sprites[][]`)
-- Sort them back-to-front by squared distance to the player (insertion sort)
-- Provide `sprites_collect_and_sort()` which scans the grid, builds `Sprite` instances at cell centres, and returns a sorted array used by the renderer
+- Sort visible sprites back-to-front by perpendicular distance (insertion sort)
+- Provide `sprites_sort()` which operates in-place on a pre-collected `Sprite` array
+
+Sprite collection happens during DDA traversal in `rc_cast()`. As each ray steps through floor cells, it checks the map's sprite plane for non-empty cells and adds unseen sprites (with their perpendicular distance to the camera plane) to `GameState.visible_sprites[]`. A per-frame visited bitmap prevents duplicates across the 800 rays. After all rays complete, `sprites_sort()` orders them back-to-front.
 
 The sprite rendering itself lives in `platform_sdl.c` (since it needs framebuffer access). The rendering pass occurs **after** walls are drawn and uses:
 - **Billboarding**: sprites are rendered as flat planes perpendicular to the view vector using the inverse camera matrix
 - **Z-buffering**: a 1D depth buffer (`GameState.z_buffer[]`) filled during raycasting prevents sprites from showing through walls
 - **Colour-key transparency**: pixels matching `SPRITE_ALPHA_KEY` are skipped
 
-Sprite placement is defined in the map's sprites plane (`Map.sprites[][]`), loaded from `map_sprites.txt`. At render time, the grid is scanned each frame to collect and sort active sprites.
+Sprite placement is defined in the map's sprites plane (`Map.sprites[][]`), loaded from `map_sprites.txt`. Only sprites whose cells are traversed by at least one ray are collected, avoiding a full grid scan.
 
 ### Layer 3: Orchestrator (`main.c`)
 
@@ -200,13 +201,14 @@ sequenceDiagram
     end
 
     Main->>Core: rc_cast(&gs, &map)
-    Note over Core: For each of 800 screen columns:<br/>Cast ray via DDA, store distance in gs.hits[]
+    Note over Core: For each of 800 screen columns:<br/>Cast ray via DDA, store distance in gs.hits[]<br/>Collect visible sprites from traversed cells
+    Note over Core: Sort visible sprites back-to-front
 
-    Main->>Plat: platform_render(&gs, &map)
+    Main->>Plat: platform_render(&gs)
     Note over Plat: Clear screen (ceiling color)
     Note over Plat: Draw floor rectangle (bottom half)
     Note over Plat: For each column: draw wall strip from hits[]
-    Note over Plat: Collect sprites from map grid, sort, and render
+    Note over Plat: Render pre-sorted visible sprites
     Note over Plat: Draw debug overlay (player coords)
     Note over Plat: SDL_RenderPresent
 ```
@@ -446,6 +448,8 @@ classDiagram
         Player player
         RayHit hits[800]
         float z_buffer[800]
+        Sprite visible_sprites[256]
+        int visible_sprite_count
         bool game_over
     }
 
@@ -479,12 +483,13 @@ classDiagram
 
     class Sprite {
         float x, y
+        float perp_dist
         uint16 texture_id
     }
 
     GameState *-- Player
     GameState *-- RayHit
-    Map *-- Sprite
+    GameState *-- Sprite
 
     note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
     note for Map "Standalone map data (tiles + info + sprites planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."

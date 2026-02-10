@@ -7,7 +7,6 @@
 #include "platform_sdl.h"
 #include "raycaster.h"
 #include "textures_sdl.h"
-#include "sprites.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -95,41 +94,34 @@ static unsigned int darken(unsigned int c)
 /* ── Sprite rendering (billboarded, z-buffered) ──────────────────── */
 
 static void render_sprites(unsigned int *fb, int fb_stride,
-                           const GameState *gs, const Map *map)
+                           const GameState *gs)
 {
     const Player *p = &gs->player;
-
-    /* Collect sprites from the map grid and sort back-to-front */
-    Sprite sprite_buf[MAP_MAX_W * MAP_MAX_H];
-    int n = sprites_collect_and_sort(map, p, sprite_buf,
-                                     MAP_MAX_W * MAP_MAX_H);
+    int n = gs->visible_sprite_count;
     if (n <= 0) return;
 
-    /* Inverse camera matrix determinant:
+    /* Inverse camera matrix determinant (for transform_x computation):
      * | plane_x  dir_x |   inv_det = 1 / (plane_x*dir_y - dir_x*plane_y)
      * | plane_y  dir_y |
      */
     float inv_det = 1.0f / (p->plane_x * p->dir_y - p->dir_x * p->plane_y);
 
     for (int i = 0; i < n; i++) {
-        const Sprite *sp = &sprite_buf[i];
+        const Sprite *sp = &gs->visible_sprites[i];
+        float depth = sp->perp_dist;
 
         /* Translate sprite position relative to player */
         float sx = sp->x - p->x;
         float sy = sp->y - p->y;
 
-        /* Transform to camera/view space using inverse camera matrix */
+        /* Camera-space X (horizontal offset on screen) */
         float transform_x = inv_det * (p->dir_y * sx - p->dir_x * sy);
-        float transform_y = inv_det * (-p->plane_y * sx + p->plane_x * sy);
-
-        /* Skip sprites behind the camera */
-        if (transform_y <= 0.0f) continue;
 
         /* Project: screen X position and sprite dimensions */
         int sprite_screen_x = (int)((SCREEN_W / 2) *
-                              (1.0f + transform_x / transform_y));
+                              (1.0f + transform_x / depth));
 
-        int sprite_h = abs((int)(SCREEN_H / transform_y));
+        int sprite_h = abs((int)(SCREEN_H / depth));
         int sprite_w = sprite_h;  /* square sprites */
 
         /* Vertical draw bounds */
@@ -152,7 +144,7 @@ static void render_sprites(unsigned int *fb, int fb_stride,
         /* Draw sprite columns */
         for (int x = x_start; x <= x_end; x++) {
             /* Z-buffer test: skip if wall is closer */
-            if (transform_y >= gs->z_buffer[x]) continue;
+            if (depth >= gs->z_buffer[x]) continue;
 
             /* Texture X coordinate */
             int tex_x = (int)((x - draw_start_x) * TEX_SIZE / sprite_w);
@@ -181,7 +173,7 @@ static void render_sprites(unsigned int *fb, int fb_stride,
 
 /* ── Main rendering ───────────────────────────────────────────────── */
 
-void platform_render(const GameState *gs, const Map *map)
+void platform_render(const GameState *gs)
 {
     /* Lock the streaming texture for direct pixel writes */
     void *tex_pixels = NULL;
@@ -237,7 +229,7 @@ void platform_render(const GameState *gs, const Map *map)
     }
 
     /* Sprite rendering pass (after walls, before unlock) */
-    render_sprites(fb, fb_stride, gs, map);
+    render_sprites(fb, fb_stride, gs);
 
     SDL_UnlockTexture(fb_tex);
 

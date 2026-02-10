@@ -14,6 +14,7 @@
 
 /* ── Sprite constants ─────────────────────────────────────────────── */
 #define SPRITE_EMPTY 0            /* no sprite in this cell              */
+#define MAX_VISIBLE_SPRITES 256   /* max sprites collected per frame     */
 
 /* ── Per-column ray result ─────────────────────────────────────────── */
 typedef struct RayHit {
@@ -30,9 +31,10 @@ typedef struct Player {
     float plane_x, plane_y; /* camera plane (perpendicular to dir)   */
 } Player;
 
-/* ── Sprite instance (collected at render time from the grid) ─────── */
+/* ── Sprite instance (collected during raycasting) ─────────────────── */
 typedef struct Sprite {
     float    x, y;        /* position in map units (cell centre)       */
+    float    perp_dist;   /* perpendicular distance to camera plane    */
     uint16_t texture_id;  /* index into sprite texture atlas           */
 } Sprite;
 
@@ -49,6 +51,8 @@ typedef struct GameState {
     Player  player;
     RayHit  hits[SCREEN_W];      /* filled every frame by rc_cast()    */
     float   z_buffer[SCREEN_W];  /* 1D depth buffer for sprite clipping*/
+    Sprite  visible_sprites[MAX_VISIBLE_SPRITES]; /* collected by rc_cast */
+    int     visible_sprite_count;                 /* number of visible   */
     bool    game_over;           /* true when player reaches endgame   */
 } GameState;
 
