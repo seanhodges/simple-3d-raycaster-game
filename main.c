@@ -17,8 +17,10 @@ int main(int argc, char *argv[])
 {
     (void)argc; (void)argv;
 
-    const char *map_path = "map.txt";
-    if (argc > 1) map_path = argv[1];
+    const char *tiles_path = "map.txt";
+    const char *info_path  = "map_info.txt";
+    if (argc > 1) tiles_path = argv[1];
+    if (argc > 2) info_path  = argv[2];
 
     /* Initialise */
     Map map;
@@ -27,8 +29,8 @@ int main(int argc, char *argv[])
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&map, &gs.player, map_path)) {
-        fprintf(stderr, "main: failed to load map '%s'\n", map_path);
+    if (!map_load(&map, &gs.player, tiles_path, info_path)) {
+        fprintf(stderr, "main: failed to load map\n");
         return 1;
     }
 
@@ -71,7 +73,7 @@ int main(int argc, char *argv[])
         rc_cast(&gs, &map);
         platform_render(&gs);
 
-        /* Player reached the exit cell */
+        /* Player reached the endgame trigger */
         if (gs.game_over) running = false;
     }
 

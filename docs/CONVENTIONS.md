@@ -41,6 +41,8 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 ### Constants
 
 - **Preprocessor defines** in `UPPER_SNAKE_CASE`: `SCREEN_W`, `FOV_DEG`, `MAP_MAX_H`, `COL_WALL`
+- **Tile plane constants** prefixed with `TILE_`: `TILE_FLOOR`
+- **Info plane constants** prefixed with `INFO_`: `INFO_EMPTY`, `INFO_SPAWN_PLAYER_N/E/S/W`, `INFO_TRIGGER_ENDGAME`
 - **Color constants** prefixed with `COL_`: `COL_CEIL`, `COL_FLOOR`, `COL_WALL`, `COL_WALL_SHADE`
 - **Physics constants** use descriptive suffixes: `MOVE_SPD`, `ROT_SPD`, `TICK_RATE`
 
@@ -111,7 +113,8 @@ These use the `──` (U+2500) box-drawing character, not ASCII dashes. The lin
 - **4-space indentation** (no tabs in source files)
 - **K&R brace style** for functions:
   ```c
-  bool map_load(Map *map, Player *player, const char *path)
+  bool map_load(Map *map, Player *player, const char *tiles_path,
+                const char *info_path)
   {
       // body
   }
@@ -173,11 +176,12 @@ The codebase uses a **fail-fast, propagate-boolean** strategy. There are no exce
 ### Pattern: Return `bool`, Print to `stderr`
 
 ```c
-bool map_load(Map *map, Player *player, const char *path)
+bool map_load(Map *map, Player *player, const char *tiles_path,
+              const char *info_path)
 {
-    FILE *fp = fopen(path, "r");
+    FILE *fp = fopen(tiles_path, "r");
     if (!fp) {
-        fprintf(stderr, "map_load: cannot open '%s'\n", path);
+        fprintf(stderr, "map_load: cannot open '%s'\n", tiles_path);
         return false;
     }
     // ...
@@ -189,8 +193,8 @@ Every error message includes the **function name** and the **offending value** f
 ### Caller Responsibility
 
 ```c
-if (!map_load(&map, &gs.player, map_path)) {
-    fprintf(stderr, "main: failed to load map '%s'\n", map_path);
+if (!map_load(&map, &gs.player, tiles_path, info_path)) {
+    fprintf(stderr, "main: failed to load map\n");
     return 1;
 }
 
@@ -289,7 +293,7 @@ make test        # Build and run all tests (no SDL required)
 
 Tests live in two files:
 - `test_raycaster.c` — links against `raycaster.o` and `map_manager_fake.o` (a hardcoded test map). Filesystem-independent.
-- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt` in the working directory.
+- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt` and `map_info.txt` in the working directory.
 
 Both have no SDL dependency. Run from the project root with `make test`.
 
@@ -349,7 +353,8 @@ Note that the X-axis check happens first, and the Y-axis check uses the **update
 
 - Map coordinates: `(col, row)` where `(0,0)` is the top-left
 - Player position: floating-point, center of a cell is `(col + 0.5, row + 0.5)`
-- Map cells indexed as `cells[row][col]` (row-major, Y-first)
+- Map tiles indexed as `tiles[row][col]` (row-major, Y-first)
+- Map info indexed as `info[row][col]` (same layout as tiles)
 
 ### Units
 
@@ -413,7 +418,7 @@ Constants used by only one file are `#define`d in that `.c` file, not in a heade
 | Location | Examples | Why |
 |---|---|---|
 | `game_globals.h` | `SCREEN_W`, `MAP_MAX_W`, `MAP_MAX_H` | Constants needed by shared type definitions |
-| `raycaster.h` | `SCREEN_H`, `FOV_DEG`, `COL_WALL`, `TEX_SIZE`, `TEX_COUNT` | Used by both core and platform |
+| `raycaster.h` | `SCREEN_H`, `FOV_DEG`, `COL_WALL`, `TEX_SIZE`, `TEX_COUNT`, `TILE_FLOOR`, `INFO_*` | Used by both core and platform |
 | `raycaster.c` | `PI`, `MOVE_SPD`, `ROT_SPD`, `COL_MARGIN` | Implementation detail of the core |
 | `main.c` | `TICK_RATE`, `DT`, `MAX_FRAME` | Implementation detail of the game loop |
 

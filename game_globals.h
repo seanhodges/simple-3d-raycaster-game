@@ -29,7 +29,8 @@ typedef struct Player {
 
 /* ── World map ─────────────────────────────────────────────────────── */
 typedef struct Map {
-    uint16_t  cells[MAP_MAX_H][MAP_MAX_W];
+    uint16_t  tiles[MAP_MAX_H][MAP_MAX_W]; /* geometry: 0=floor, >0=wall */
+    uint16_t  info[MAP_MAX_H][MAP_MAX_W];  /* metadata: spawn, triggers  */
     int       w, h;
 } Map;
 
@@ -37,7 +38,7 @@ typedef struct Map {
 typedef struct GameState {
     Player  player;
     RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
-    bool    game_over;        /* true when player reaches exit cell   */
+    bool    game_over;        /* true when player reaches endgame     */
 } GameState;
 
 /* ── Input flags (set by platform layer) ───────────────────────────── */

@@ -14,14 +14,13 @@
 /* ── Player movement / rotation ────────────────────────────────────── */
 
 /**  Check if a position is inside a wall.
- *   Returns true for walls (cell > 0) and out-of-bounds positions.
- *   Floor cells (cell == 0) and special floor cells (cell == 65535) are walkable. */
+ *   Returns true for walls (tile > 0) and out-of-bounds positions. */
 static bool is_wall(const Map *m, float x, float y)
 {
     int mx = (int)x;
     int my = (int)y;
     if (mx < 0 || my < 0 || mx >= m->w || my >= m->h) return true;
-    return m->cells[my][mx] > 0 && m->cells[my][mx] < 65535;
+    return m->tiles[my][mx] > TILE_FLOOR;
 }
 
 void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
@@ -68,11 +67,11 @@ void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
     if (!is_wall(map, p->x, p->y + dy + (dy > 0 ? COL_MARGIN : -COL_MARGIN)))
         p->y += dy;
 
-    /* ── Exit detection (player must reach centre of exit cell) ──── */
+    /* ── Endgame detection (player must reach centre of trigger) ─── */
     int cx = (int)p->x;
     int cy = (int)p->y;
     if (cx >= 0 && cy >= 0 && cx < map->w && cy < map->h
-        && map->cells[cy][cx] == CELL_EXIT) {
+        && map->info[cy][cx] == INFO_TRIGGER_ENDGAME) {
 
         float centre_x = cx + 0.5f;
         float centre_y = cy + 0.5f;
@@ -157,7 +156,7 @@ void rc_cast(GameState *gs, const Map *map)
             /* Check if we hit a wall or went out of bounds */
             if (map_x < 0 || map_y < 0 || map_x >= map->w || map_y >= map->h) {
                 hit = true;                    /* out of bounds = wall */
-            } else if (map->cells[map_y][map_x] > CELL_FLOOR && map->cells[map_y][map_x] < CELL_EXIT) {
+            } else if (map->tiles[map_y][map_x] > TILE_FLOOR) {
                 hit = true;
             }
         }
@@ -187,17 +186,17 @@ void rc_cast(GameState *gs, const Map *map)
             wall_x = p->x + perp * ray_dx;   /* horizontal wall: X varies along face */
         wall_x -= floorf(wall_x);            /* keep only fractional part [0.0, 1.0) */
 
-        /* Extract wall_type (texture index) from cell value.
-         * Cell encoding: 0 = floor, 1 = wall type 0, 2 = wall type 1, etc.
-         * So wall_type = cell - 1. Out-of-bounds cells default to type 0. */
-        int cell = 0;
+        /* Extract wall_type (texture index) from tile value.
+         * Tile encoding: 0 = floor, 1 = wall type 0, 2 = wall type 1, etc.
+         * So wall_type = tile - 1. Out-of-bounds tiles default to type 0. */
+        int tile = 0;
         if (map_x >= 0 && map_y >= 0 && map_x < map->w && map_y < map->h)
-            cell = map->cells[map_y][map_x];
+            tile = map->tiles[map_y][map_x];
 
         /* Store results in the hit buffer for this column – the renderer reads this */
         gs->hits[x].wall_dist = perp;
         gs->hits[x].wall_x    = wall_x;
         gs->hits[x].side      = side;
-        gs->hits[x].wall_type = (cell > 0) ? cell - 1 : 0;
+        gs->hits[x].wall_type = (tile > 0) ? tile - 1 : 0;
     }
 }
