@@ -6,11 +6,16 @@
 /* ── Raycasting constants ──────────────────────────────────────────── */
 #define FOV_DEG   60.0f          /* field of view in degrees           */
 
-/* ── Special cell values ──────────────────────────────────────────── */
-#define CELL_FLOOR  0            /* empty floor                        */
+/* ── Tiles plane values ───────────────────────────────────────────── */
+#define TILE_FLOOR  0            /* empty floor (walkable)             */
 
-/* TODO(sean): Replace special cells like CELL_EXIT with a proper trigger in a dedicated map plane */
-#define CELL_EXIT  65535         /* exit trigger (walkable floor)      */
+/* ── Info plane values ────────────────────────────────────────────── */
+#define INFO_EMPTY              0 /* no metadata at this cell          */
+#define INFO_SPAWN_PLAYER_N     1 /* player spawn, facing north        */
+#define INFO_SPAWN_PLAYER_E     2 /* player spawn, facing east         */
+#define INFO_SPAWN_PLAYER_S     3 /* player spawn, facing south        */
+#define INFO_SPAWN_PLAYER_W     4 /* player spawn, facing west         */
+#define INFO_TRIGGER_ENDGAME    5 /* endgame trigger                   */
 
 /* ── Public API ────────────────────────────────────────────────────── */
 

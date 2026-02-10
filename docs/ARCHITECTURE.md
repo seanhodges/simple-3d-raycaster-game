@@ -39,7 +39,7 @@ graph TB
 
     subgraph "External"
         SDL3["SDL3 Library"]
-        MAP["map.txt"]
+        MAP["map.txt + map_info.txt"]
         BMP["assets/textures.bmp"]
     end
 
@@ -96,9 +96,9 @@ Responsibilities:
 **Design pattern: File Parser Module** — separated from the core engine to allow test-time substitution with a fake implementation.
 
 Responsibilities:
-- **Map loading** (`map_load`) — parse the ASCII map file into a standalone `Map` struct and initialise the `Player` position and camera
+- **Map loading** (`map_load`) — parse two ASCII map files (tiles plane + info plane) into a standalone `Map` struct and initialise the `Player` position, direction, and camera
 
-For unit tests, `map_manager_fake.c` provides an alternative `map_load` implementation that returns a hardcoded map with all cell types, removing filesystem dependencies from the core test suite.
+For unit tests, `map_manager_fake.c` provides an alternative `map_load` implementation that returns a hardcoded map with all tile types and info entries, removing filesystem dependencies from the core test suite.
 
 This separation is an important architectural decision in the project. It means:
 - The core engine can be unit-tested without a display
@@ -316,7 +316,11 @@ Platform state (`SDL_Window*`, `SDL_Renderer*`) is stored in **file-scoped stati
 
 ## Map System
 
-Maps are ASCII text files parsed at startup. The format is simple by design:
+Maps consist of two ASCII text files parsed at startup — one for geometry (tiles) and one for metadata (info). Both files share the same grid dimensions.
+
+### Tiles Plane (`map.txt`)
+
+Defines wall geometry and floor layout:
 
 ```
 XXXXXXXXXXXXXXXX
@@ -325,28 +329,58 @@ X  XXXXX  XXX  X
 X  X          XX
 X  X  XXXXXX  X
 X     X    X   X
-X  P  X    X   X      ← P marks player spawn
+X     X    X   X
 X     X        X
 XXXX  XXXX  XXXX
 ...
 ```
 
-| Character | Meaning | Cell Value |
+| Character | Meaning | Tile Value |
 |---|---|---|
 | `X` or `#` | Wall (texture 0) | `1` |
 | `0`–`9` | Wall (texture N) | `N + 1` |
-| `P` or `p` | Player spawn (floor) | `0` |
-| `F` or `f` | Exit trigger (floor) | `65535` (`CELL_EXIT`) |
-| ` ` (space) | Empty floor | `0` |
+| ` ` (space) | Empty floor | `0` (`TILE_FLOOR`) |
 
-Cell values encode wall presence, texture type, and special floor types: `0` = floor, `>= 1` = wall with `wall_type = cell - 1`, `65535` = special floor (e.g. `CELL_EXIT`). `is_wall()` checks `> 0` so negative values are walkable. When the player steps on a `CELL_EXIT` cell, `game_over` is set to `true` and the game displays a congratulations screen.
+Tile values encode wall presence and texture type: `0` = floor (walkable), `> 0` = wall with `wall_type = tile - 1`. The `is_wall()` function simply checks `tile > TILE_FLOOR`.
 
-Constraints:
+### Info Plane (`map_info.txt`)
+
+Defines metadata — player spawn position/direction and triggers. The file uses an `X` border to visually frame the grid and aid readability:
+
+```
+XXXXXXXXXXXXXXXX
+X   F          X
+X              X
+X              X
+X              X
+X              X
+X   >          X
+X              X
+...
+XXXXXXXXXXXXXXXX
+```
+
+| Character | Meaning | Info Value |
+|---|---|---|
+| ` ` (space) | Empty (no metadata) | `0` (`INFO_EMPTY`) |
+| `X` | Border / decoration (ignored) | `0` (`INFO_EMPTY`) |
+| `^` | Player spawn, facing north | `1` (`INFO_SPAWN_PLAYER_N`) |
+| `>` | Player spawn, facing east | `2` (`INFO_SPAWN_PLAYER_E`) |
+| `V` | Player spawn, facing south | `3` (`INFO_SPAWN_PLAYER_S`) |
+| `<` | Player spawn, facing west | `4` (`INFO_SPAWN_PLAYER_W`) |
+| `F` or `f` | Endgame trigger | `5` (`INFO_TRIGGER_ENDGAME`) |
+
+Any unrecognised character (including the `X` border) is treated as `INFO_EMPTY`. The `X` border is a visual convention that mirrors the wall border in `map.txt`, making the two files easy to compare side-by-side.
+
+The player spawns at the **center** of the spawn cell (`col + 0.5, row + 0.5`) facing the direction indicated by the arrow character. The camera plane is derived from `FOV_DEG`, perpendicular to the facing direction.
+
+When the player reaches the centre of an `INFO_TRIGGER_ENDGAME` cell, `game_over` is set to `true` and the game displays a congratulations screen.
+
+### Constraints
+
 - Maximum size: 64×64 (`MAP_MAX_W` / `MAP_MAX_H`)
-- Must contain exactly one `P` (parser uses the last one found if multiple exist)
+- The info plane must contain exactly one spawn cell (parser uses the last one found if multiple exist)
 - Edges should be walled off (out-of-bounds is treated as wall, but open edges look wrong)
-
-The player spawns at the **center** of the `P` cell (`col + 0.5, row + 0.5`) facing east, with the camera plane derived from `FOV_DEG`.
 
 ---
 
@@ -361,7 +395,8 @@ classDiagram
     }
 
     class Map {
-        int cells[64][64]
+        uint16 tiles[64][64]
+        uint16 info[64][64]
         int w
         int h
     }
@@ -390,7 +425,7 @@ classDiagram
     GameState *-- RayHit
 
     note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
-    note for Map "Standalone map data.\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
+    note for Map "Standalone map data (tiles + info planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
     note for RayHit "Filled every frame by rc_cast().\nConsumed by platform_render().\nOne entry per screen column."
     note for Input "Written by platform layer.\nRead by core engine.\nBridge between layers."
 ```
@@ -398,7 +433,7 @@ classDiagram
 ### Ownership Model
 
 - `GameState` holds player state and the ray buffer — allocated on `main()`'s stack, passed by pointer everywhere
-- `Map` is a **standalone struct** — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
+- `Map` is a **standalone struct** with two planes (tiles + info) — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
 - `Input` is the **bridge** — written by the platform layer, read by the core engine
 - `RayHit[SCREEN_W]` is the **frame buffer** — filled by `rc_cast()`, consumed by `platform_render()`
 - Platform state (window, renderer) is **private** to `platform_sdl.c` via file-scoped statics

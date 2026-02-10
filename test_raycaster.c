@@ -1,7 +1,7 @@
 /*  test_raycaster.c  –  unit tests for the platform-independent core
  *  ──────────────────────────────────────────────────────────────────
  *  Links against raycaster.o and map_manager_fake.o — no SDL dependency.
- *  The fake map module provides a hardcoded map with all cell types
+ *  The fake map module provides a hardcoded map with all tile types
  *  so these tests are deterministic and filesystem-independent.
  *  Build:  make test
  *  Run:    ./test_raycaster
@@ -56,7 +56,7 @@ static void init_box_map(Map *map, GameState *gs, int w, int h,
     /* Walls on all edges, floor inside */
     for (int r = 0; r < h; r++)
         for (int c = 0; c < w; c++)
-            map->cells[r][c] =
+            map->tiles[r][c] =
                 (r == 0 || r == h - 1 || c == 0 || c == w - 1) ? 1 : 0;
 
     gs->player.x     = px;
@@ -77,7 +77,7 @@ static void load_fake_map(Map *map, GameState *gs)
 {
     memset(map, 0, sizeof(*map));
     memset(gs, 0, sizeof(*gs));
-    bool ok = map_load(map, &gs->player, "ignored");
+    bool ok = map_load(map, &gs->player, "ignored", "ignored");
     assert(ok);
 }
 
@@ -87,11 +87,15 @@ static void load_fake_map(Map *map, GameState *gs)
 /*  The fake map layout (7 wide × 5 tall):                            */
 /*                                                                    */
 /*      col:  0  1  2  3  4  5  6                                     */
-/*  row 0:    X  1  2  3  #  4  X    cells: 1,2,3,4,1,5,1            */
-/*  row 1:    5  P     F     6  X    cells: 6,0,0,-1,0,7,1           */
-/*  row 2:    X  7  8  9  0     X    cells: 1,8,9,10,1,0,1           */
-/*  row 3:    X        X     X  X    cells: 1,0,0,1,0,1,1            */
-/*  row 4:    X  X  X  X  X  X  X    cells: all 1                    */
+/*  row 0:    X  1  2  3  #  4  X    tiles: 1,2,3,4,1,5,1            */
+/*  row 1:    5  .  .  .  .  6  X    tiles: 6,0,0,0,0,7,1            */
+/*  row 2:    X  7  8  9  0  .  X    tiles: 1,8,9,10,1,0,1           */
+/*  row 3:    X  .  .  X  .  X  X    tiles: 1,0,0,1,0,1,1            */
+/*  row 4:    X  X  X  X  X  X  X    tiles: all 1                    */
+/*                                                                    */
+/*  Info plane:                                                       */
+/*  row 1, col 1: INFO_SPAWN_PLAYER_E                                 */
+/*  row 1, col 3: INFO_TRIGGER_ENDGAME                                */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 static void test_fake_map_dimensions(void)
@@ -106,82 +110,94 @@ static void test_fake_map_dimensions(void)
 
 static void test_fake_map_wall_x_hash(void)
 {
-    /* X and # both produce cell value 1 (wall_type 0) */
+    /* X and # both produce tile value 1 (wall_type 0) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
 
     /* 'X' at corners */
-    assert(map.cells[0][0] == 1);
-    assert(map.cells[0][6] == 1);
-    assert(map.cells[4][0] == 1);
-    assert(map.cells[4][6] == 1);
+    assert(map.tiles[0][0] == 1);
+    assert(map.tiles[0][6] == 1);
+    assert(map.tiles[4][0] == 1);
+    assert(map.tiles[4][6] == 1);
 
     /* '#' at row 0, col 4 */
-    assert(map.cells[0][4] == 1);
+    assert(map.tiles[0][4] == 1);
 }
 
 static void test_fake_map_digit_walls(void)
 {
-    /* Digit N produces cell value N+1 (wall_type N) */
+    /* Digit N produces tile value N+1 (wall_type N) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
 
-    /* Digit '1' at (0,1) → cell = 2 */
-    assert(map.cells[0][1] == 2);
-    /* Digit '2' at (0,2) → cell = 3 */
-    assert(map.cells[0][2] == 3);
-    /* Digit '3' at (0,3) → cell = 4 */
-    assert(map.cells[0][3] == 4);
-    /* Digit '4' at (0,5) → cell = 5 */
-    assert(map.cells[0][5] == 5);
-    /* Digit '5' at (1,0) → cell = 6 */
-    assert(map.cells[1][0] == 6);
-    /* Digit '6' at (1,5) → cell = 7 */
-    assert(map.cells[1][5] == 7);
-    /* Digit '7' at (2,1) → cell = 8 */
-    assert(map.cells[2][1] == 8);
-    /* Digit '8' at (2,2) → cell = 9 */
-    assert(map.cells[2][2] == 9);
-    /* Digit '9' at (2,3) → cell = 10 */
-    assert(map.cells[2][3] == 10);
-    /* Digit '0' at (2,4) → cell = 1 */
-    assert(map.cells[2][4] == 1);
+    /* Digit '1' at (0,1) → tile = 2 */
+    assert(map.tiles[0][1] == 2);
+    /* Digit '2' at (0,2) → tile = 3 */
+    assert(map.tiles[0][2] == 3);
+    /* Digit '3' at (0,3) → tile = 4 */
+    assert(map.tiles[0][3] == 4);
+    /* Digit '4' at (0,5) → tile = 5 */
+    assert(map.tiles[0][5] == 5);
+    /* Digit '5' at (1,0) → tile = 6 */
+    assert(map.tiles[1][0] == 6);
+    /* Digit '6' at (1,5) → tile = 7 */
+    assert(map.tiles[1][5] == 7);
+    /* Digit '7' at (2,1) → tile = 8 */
+    assert(map.tiles[2][1] == 8);
+    /* Digit '8' at (2,2) → tile = 9 */
+    assert(map.tiles[2][2] == 9);
+    /* Digit '9' at (2,3) → tile = 10 */
+    assert(map.tiles[2][3] == 10);
+    /* Digit '0' at (2,4) → tile = 1 */
+    assert(map.tiles[2][4] == 1);
 }
 
-static void test_fake_map_floor_cells(void)
+static void test_fake_map_floor_tiles(void)
 {
-    /* Spaces and player cell are floor (cell value 0) */
+    /* Spawn cell and open space are floor (tile value 0) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
 
-    /* Player cell at (1,1) */
-    assert(map.cells[1][1] == CELL_FLOOR);
+    /* Spawn cell at (1,1) — floor in tiles plane */
+    assert(map.tiles[1][1] == TILE_FLOOR);
     /* Space at (1,2) */
-    assert(map.cells[1][2] == CELL_FLOOR);
+    assert(map.tiles[1][2] == TILE_FLOOR);
+    /* Endgame trigger cell at (1,3) — floor in tiles plane */
+    assert(map.tiles[1][3] == TILE_FLOOR);
     /* Space at (1,4) */
-    assert(map.cells[1][4] == CELL_FLOOR);
+    assert(map.tiles[1][4] == TILE_FLOOR);
     /* Interior floor at (3,1) */
-    assert(map.cells[3][1] == CELL_FLOOR);
+    assert(map.tiles[3][1] == TILE_FLOOR);
     /* Interior floor at (3,2) */
-    assert(map.cells[3][2] == CELL_FLOOR);
+    assert(map.tiles[3][2] == TILE_FLOOR);
 }
 
-static void test_fake_map_exit_cell(void)
+static void test_fake_map_info_spawn(void)
 {
-    /* 'F' at row 1, col 3 should be CELL_EXIT */
+    /* Info plane should have spawn marker at row 1, col 1 */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
 
-    assert(map.cells[1][3] == CELL_EXIT);
+    assert(map.info[1][1] == INFO_SPAWN_PLAYER_E);
+}
+
+static void test_fake_map_info_endgame(void)
+{
+    /* Info plane should have endgame trigger at row 1, col 3 */
+    Map map;
+    GameState gs;
+    load_fake_map(&map, &gs);
+
+    assert(map.info[1][3] == INFO_TRIGGER_ENDGAME);
 }
 
 static void test_fake_map_player_position(void)
 {
-    /* Player spawns at centre of 'P' cell (row 1, col 1) */
+    /* Player spawns at centre of spawn cell (row 1, col 1) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -217,31 +233,20 @@ static void test_fake_map_camera_plane(void)
 
 static void test_fake_map_walls_are_walls(void)
 {
-    /* All cells with value > 0 and < 65535 should be walls (is_wall logic) */
+    /* All tiles with value > 0 should be walls */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
 
     /* Check the bottom row is entirely walled */
     for (int c = 0; c < map.w; c++)
-        assert(map.cells[4][c] > 0);
+        assert(map.tiles[4][c] > 0);
 
     /* Check the left and right columns are walls in all rows */
     for (int r = 0; r < map.h; r++) {
-        assert(map.cells[r][0] > 0);
-        assert(map.cells[r][6] > 0);
+        assert(map.tiles[r][0] > 0);
+        assert(map.tiles[r][6] > 0);
     }
-}
-
-static void test_fake_map_exit_is_walkable(void)
-{
-    /* Exit cell value is 65535, so is_wall (> 0 && < 65535) treats it as walkable */
-    Map map;
-    GameState gs;
-    load_fake_map(&map, &gs);
-
-    assert(map.cells[1][3] == 65535);   /* special non-wall cell */
-    assert(map.cells[1][3] == CELL_EXIT);
 }
 
 static void test_fake_map_all_wall_types_present(void)
@@ -256,10 +261,10 @@ static void test_fake_map_all_wall_types_present(void)
 
     for (int r = 0; r < map.h; r++) {
         for (int c = 0; c < map.w; c++) {
-            int cell = map.cells[r][c];
-            if (cell > 0) {
-                uint16_t wall_type = cell - 1;
-                if (wall_type >= 0 && wall_type < TEX_COUNT)
+            uint16_t tile = map.tiles[r][c];
+            if (tile > 0) {
+                uint16_t wall_type = tile - 1;
+                if (wall_type < TEX_COUNT)
                     found[wall_type] = true;
             }
         }
@@ -409,15 +414,15 @@ static void test_update_rotation_right(void)
     ASSERT_NEAR(len, 1.0f, 0.001f);
 }
 
-static void test_update_exit_cell_walkable(void)
+static void test_update_endgame_tile_walkable(void)
 {
-    /* Exit cell should be walkable (not treated as wall) */
+    /* Endgame trigger tile is floor in tiles plane — always walkable */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 3.5f, 5.5f, 1.0f, 0.0f);
 
-    /* Place an exit cell ahead of the player */
-    map.cells[5][5] = CELL_EXIT;
+    /* Place an endgame trigger in the info plane (tile stays floor) */
+    map.info[5][5] = INFO_TRIGGER_ENDGAME;
 
     Input in;
     memset(&in, 0, sizeof(in));
@@ -427,20 +432,20 @@ static void test_update_exit_cell_walkable(void)
     for (int i = 0; i < 60; i++)
         rc_update(&gs, &map, &in, 1.0f / 60.0f);
 
-    /* Player should have moved past the exit cell (not blocked) */
+    /* Player should have moved past the trigger cell (not blocked) */
     assert(gs.player.x > 5.0f);
     (void)old_x;
 }
 
-static void test_update_exit_triggers_game_over(void)
+static void test_update_endgame_triggers_game_over(void)
 {
-    /* Walking onto an exit cell should set game_over */
+    /* Walking onto an endgame trigger should set game_over */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 4.5f, 5.5f, 1.0f, 0.0f);
 
-    /* Place exit cell at col 5 */
-    map.cells[5][5] = CELL_EXIT;
+    /* Place endgame trigger in info plane at col 5 */
+    map.info[5][5] = INFO_TRIGGER_ENDGAME;
 
     assert(!gs.game_over);
 
@@ -448,7 +453,7 @@ static void test_update_exit_triggers_game_over(void)
     memset(&in, 0, sizeof(in));
     in.forward = true;
 
-    /* Walk forward until we reach the exit cell */
+    /* Walk forward until we reach the trigger cell */
     for (int i = 0; i < 60; i++) {
         rc_update(&gs, &map, &in, 1.0f / 60.0f);
         if (gs.game_over) break;
@@ -457,15 +462,15 @@ static void test_update_exit_triggers_game_over(void)
     assert(gs.game_over);
 }
 
-static void test_update_exit_requires_centre(void)
+static void test_update_endgame_requires_centre(void)
 {
-    /* Entering the exit cell near its edge should not trigger game_over */
+    /* Entering the trigger cell near its edge should not trigger game_over */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    /* Place exit cell at col 6, centre at (6.5, 5.5) */
-    map.cells[5][6] = CELL_EXIT;
+    /* Place endgame trigger at col 6, centre at (6.5, 5.5) */
+    map.info[5][6] = INFO_TRIGGER_ENDGAME;
 
     /* Put player just inside the cell but far from centre */
     gs.player.x = 6.05f;
@@ -484,7 +489,7 @@ static void test_update_exit_requires_centre(void)
     assert(gs.game_over);
 }
 
-static void test_update_no_exit_no_game_over(void)
+static void test_update_no_trigger_no_game_over(void)
 {
     /* Walking on normal floor should not set game_over */
     Map map;
@@ -560,7 +565,7 @@ static void test_cast_all_columns_filled(void)
     /* Every column should have a positive wall distance */
     for (int x = 0; x < SCREEN_W; x++) {
         assert(gs.hits[x].wall_dist > 0.0f);
-        assert(gs.hits[x].wall_type == 0);   /* init_box_map uses cell=1 → type 0 */
+        assert(gs.hits[x].wall_type == 0);   /* init_box_map uses tile=1 → type 0 */
     }
 }
 
@@ -637,7 +642,7 @@ static void test_cast_wall_x_centre(void)
 
 static void test_cast_digit_wall_type(void)
 {
-    /* Build a map where the east wall is cell value 6 (wall_type 5) */
+    /* Build a map where the east wall is tile value 6 (wall_type 5) */
     Map map;
     GameState gs;
     memset(&map, 0, sizeof(map));
@@ -647,16 +652,16 @@ static void test_cast_digit_wall_type(void)
 
     for (int r = 0; r < 10; r++)
         for (int c = 0; c < 10; c++)
-            map.cells[r][c] = 0;
+            map.tiles[r][c] = 0;
 
     /* Border walls: left/top/bottom = type 0, right = type 5 */
     for (int r = 0; r < 10; r++) {
-        map.cells[r][0] = 1;      /* type 0 */
-        map.cells[r][9] = 6;      /* type 5 */
+        map.tiles[r][0] = 1;      /* type 0 */
+        map.tiles[r][9] = 6;      /* type 5 */
     }
     for (int c = 0; c < 10; c++) {
-        map.cells[0][c] = 1;
-        map.cells[9][c] = 1;
+        map.tiles[0][c] = 1;
+        map.tiles[9][c] = 1;
     }
 
     /* Player facing east, will hit the right wall (type 5) */
@@ -743,9 +748,9 @@ static void test_walk_and_cast(void)
     assert(dist > 0.0f);
 }
 
-static void test_fake_map_exit_triggers_game_over(void)
+static void test_fake_map_endgame_triggers_game_over(void)
 {
-    /* Walk from player spawn towards the exit cell and confirm game_over */
+    /* Walk from player spawn towards the endgame trigger and confirm game_over */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -756,8 +761,8 @@ static void test_fake_map_exit_triggers_game_over(void)
     memset(&in, 0, sizeof(in));
     in.forward = true;
 
-    /* Player at (1.5, 1.5) facing east, exit at col 3, row 1.
-     * Walk east until reaching exit centre (3.5, 1.5). */
+    /* Player at (1.5, 1.5) facing east, trigger at col 3, row 1.
+     * Walk east until reaching trigger centre (3.5, 1.5). */
     for (int i = 0; i < 120; i++) {
         rc_update(&gs, &map, &in, 1.0f / 60.0f);
         if (gs.game_over) break;
@@ -776,13 +781,13 @@ int main(void)
     RUN_TEST(test_fake_map_dimensions);
     RUN_TEST(test_fake_map_wall_x_hash);
     RUN_TEST(test_fake_map_digit_walls);
-    RUN_TEST(test_fake_map_floor_cells);
-    RUN_TEST(test_fake_map_exit_cell);
+    RUN_TEST(test_fake_map_floor_tiles);
+    RUN_TEST(test_fake_map_info_spawn);
+    RUN_TEST(test_fake_map_info_endgame);
     RUN_TEST(test_fake_map_player_position);
     RUN_TEST(test_fake_map_player_direction);
     RUN_TEST(test_fake_map_camera_plane);
     RUN_TEST(test_fake_map_walls_are_walls);
-    RUN_TEST(test_fake_map_exit_is_walkable);
     RUN_TEST(test_fake_map_all_wall_types_present);
 
     printf("\n── rc_update ───────────────────────────────────────────\n");
@@ -793,10 +798,10 @@ int main(void)
     RUN_TEST(test_update_wall_sliding);
     RUN_TEST(test_update_rotation_left);
     RUN_TEST(test_update_rotation_right);
-    RUN_TEST(test_update_exit_cell_walkable);
-    RUN_TEST(test_update_exit_triggers_game_over);
-    RUN_TEST(test_update_exit_requires_centre);
-    RUN_TEST(test_update_no_exit_no_game_over);
+    RUN_TEST(test_update_endgame_tile_walkable);
+    RUN_TEST(test_update_endgame_triggers_game_over);
+    RUN_TEST(test_update_endgame_requires_centre);
+    RUN_TEST(test_update_no_trigger_no_game_over);
 
     printf("\n── rc_cast ─────────────────────────────────────────────\n");
     RUN_TEST(test_cast_straight_east);
@@ -813,7 +818,7 @@ int main(void)
     printf("\n── Integration ─────────────────────────────────────────\n");
     RUN_TEST(test_load_then_cast);
     RUN_TEST(test_walk_and_cast);
-    RUN_TEST(test_fake_map_exit_triggers_game_over);
+    RUN_TEST(test_fake_map_endgame_triggers_game_over);
 
     printf("\n══════════════════════════════════════════════════════════\n");
     printf("  %d / %d tests passed\n", tests_passed, tests_run);

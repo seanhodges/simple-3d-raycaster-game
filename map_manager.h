@@ -3,7 +3,7 @@
 
 #include "game_globals.h"
 
-/**  Load map from file. Fills map grid and player spawn. Returns false on failure. */
-bool map_load(Map *map, Player *player, const char *path);
+/**  Load map from files. Fills tiles + info planes and player spawn. Returns false on failure. */
+bool map_load(Map *map, Player *player, const char *tiles_path, const char *info_path);
 
 #endif /* MAP_H */
