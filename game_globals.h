@@ -12,6 +12,9 @@
 #define MAP_MAX_W 64
 #define MAP_MAX_H 64
 
+/* ── Sprite limits ────────────────────────────────────────────────── */
+#define MAX_SPRITES 64           /* maximum sprites in the map         */
+
 /* ── Per-column ray result ─────────────────────────────────────────── */
 typedef struct RayHit {
     float    wall_dist;     /* perpendicular distance to wall          */
@@ -27,6 +30,12 @@ typedef struct Player {
     float plane_x, plane_y; /* camera plane (perpendicular to dir)   */
 } Player;
 
+/* ── Sprite instance ──────────────────────────────────────────────── */
+typedef struct Sprite {
+    float    x, y;        /* position in map units                    */
+    uint16_t texture_id;  /* index into sprite texture atlas          */
+} Sprite;
+
 /* ── World map ─────────────────────────────────────────────────────── */
 typedef struct Map {
     uint16_t  tiles[MAP_MAX_H][MAP_MAX_W]; /* geometry: 0=floor, >0=wall */
@@ -37,8 +46,11 @@ typedef struct Map {
 /* ── Game state (excludes map — managed separately) ───────────────── */
 typedef struct GameState {
     Player  player;
-    RayHit  hits[SCREEN_W];   /* filled every frame by rc_cast()     */
-    bool    game_over;        /* true when player reaches endgame     */
+    RayHit  hits[SCREEN_W];      /* filled every frame by rc_cast()    */
+    float   z_buffer[SCREEN_W];  /* 1D depth buffer for sprite clipping*/
+    Sprite  sprites[MAX_SPRITES];/* sprite instances in the world      */
+    int     sprite_count;        /* number of active sprites           */
+    bool    game_over;           /* true when player reaches endgame   */
 } GameState;
 
 /* ── Input flags (set by platform layer) ───────────────────────────── */

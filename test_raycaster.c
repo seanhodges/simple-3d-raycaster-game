@@ -9,6 +9,7 @@
 #include "raycaster.h"
 #include "map_manager.h"
 #include "textures_sdl.h"
+#include "sprites.h"
 
 #include <assert.h>
 #include <math.h>
@@ -772,6 +773,95 @@ static void test_fake_map_endgame_triggers_game_over(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
+/*  Sprite sorting tests                                               */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+static void test_sprites_sort_empty(void)
+{
+    /* Zero sprites should return count 0 */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+    gs.sprite_count = 0;
+
+    int order[MAX_SPRITES];
+    int n = sprites_sort(&gs, order);
+    assert(n == 0);
+}
+
+static void test_sprites_sort_back_to_front(void)
+{
+    /* Three sprites at different distances should sort farthest first */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 20, 20, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    gs.sprite_count = 3;
+    gs.sprites[0] = (Sprite){ 7.5f, 5.5f, 0 };  /* dist = 2.0 (closest)  */
+    gs.sprites[1] = (Sprite){15.5f, 5.5f, 1 };  /* dist = 10.0 (farthest) */
+    gs.sprites[2] = (Sprite){10.5f, 5.5f, 2 };  /* dist = 5.0 (middle)    */
+
+    int order[MAX_SPRITES];
+    int n = sprites_sort(&gs, order);
+    assert(n == 3);
+
+    /* First in order should be farthest (index 1, dist 10.0) */
+    assert(order[0] == 1);
+    /* Second should be middle (index 2, dist 5.0) */
+    assert(order[1] == 2);
+    /* Last should be closest (index 0, dist 2.0) */
+    assert(order[2] == 0);
+}
+
+static void test_sprites_sort_single(void)
+{
+    /* Single sprite should return that sprite's index */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    gs.sprite_count = 1;
+    gs.sprites[0] = (Sprite){ 7.5f, 5.5f, 0 };
+
+    int order[MAX_SPRITES];
+    int n = sprites_sort(&gs, order);
+    assert(n == 1);
+    assert(order[0] == 0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/*  Z-buffer tests                                                     */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+static void test_z_buffer_filled(void)
+{
+    /* After rc_cast(), z_buffer should have positive values */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs, &map);
+
+    for (int x = 0; x < SCREEN_W; x++) {
+        assert(gs.z_buffer[x] > 0.0f);
+    }
+}
+
+static void test_z_buffer_matches_hits(void)
+{
+    /* z_buffer[x] should equal hits[x].wall_dist for all columns */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs, &map);
+
+    for (int x = 0; x < SCREEN_W; x++) {
+        ASSERT_NEAR(gs.z_buffer[x], gs.hits[x].wall_dist, 0.0001f);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
 /*  Main                                                              */
 /* ═══════════════════════════════════════════════════════════════════ */
 
@@ -819,6 +909,15 @@ int main(void)
     RUN_TEST(test_load_then_cast);
     RUN_TEST(test_walk_and_cast);
     RUN_TEST(test_fake_map_endgame_triggers_game_over);
+
+    printf("\n── sprites_sort ────────────────────────────────────────\n");
+    RUN_TEST(test_sprites_sort_empty);
+    RUN_TEST(test_sprites_sort_back_to_front);
+    RUN_TEST(test_sprites_sort_single);
+
+    printf("\n── z-buffer ────────────────────────────────────────────\n");
+    RUN_TEST(test_z_buffer_filled);
+    RUN_TEST(test_z_buffer_matches_hits);
 
     printf("\n══════════════════════════════════════════════════════════\n");
     printf("  %d / %d tests passed\n", tests_passed, tests_run);

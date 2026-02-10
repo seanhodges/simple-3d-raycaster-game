@@ -30,24 +30,27 @@ graph TB
 
     subgraph "Layer 1 — Core Engine"
         RC["raycaster.c / .h<br/>Map, Player, DDA, Physics"]
+        SPR["sprites.c / .h<br/>Sprite sorting"]
     end
 
     subgraph "Layer 2 — Platform"
-        PLAT["platform_sdl.c / .h<br/>SDL3 window, input, rendering"]
-        TEX["textures_sdl.c / .h<br/>Texture atlas manager"]
+        PLAT["platform_sdl.c / .h<br/>SDL3 window, input, rendering<br/>(includes sprite renderer)"]
+        TEX["textures_sdl.c / .h<br/>Texture atlas manager<br/>(walls + sprites)"]
     end
 
     subgraph "External"
         SDL3["SDL3 Library"]
         MAP["map.txt + map_info.txt"]
-        BMP["assets/textures.bmp"]
+        BMP["assets/textures.bmp<br/>assets/sprites.bmp"]
     end
 
     MAIN --> RC
+    MAIN --> SPR
     MAIN --> PLAT
     MAIN --> TEX
     PLAT --> SDL3
     PLAT --> TEX
+    PLAT --> SPR
     TEX --> SDL3
     TEX --> BMP
     subgraph "Layer 1b — Map Loader"
@@ -125,6 +128,23 @@ Responsibilities:
 - Fall back to a solid wall colour (`COL_WALL`) if the BMP file is missing
 
 The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
+
+The texture manager also handles sprite textures via `tm_init_sprites()` and `tm_get_sprite_pixel()`. Sprite textures use colour-key transparency: pixels matching `#980088` (magenta, `SPRITE_ALPHA_KEY`) are treated as transparent and skipped during rendering.
+
+### Sprite System (`sprites.c` / `sprites.h`)
+
+**Design pattern: Pure Computation Module** — like `raycaster.c`, this file has zero platform dependencies.
+
+Responsibilities:
+- Sort sprites back-to-front by squared distance to the player (insertion sort, stable for ≤64 sprites)
+- Provide `sprites_sort()` which fills an index array used by the renderer to draw sprites in the correct order
+
+The sprite rendering itself lives in `platform_sdl.c` (since it needs framebuffer access). The rendering pass occurs **after** walls are drawn and uses:
+- **Billboarding**: sprites are rendered as flat planes perpendicular to the view vector using the inverse camera matrix
+- **Z-buffering**: a 1D depth buffer (`GameState.z_buffer[]`) filled during raycasting prevents sprites from showing through walls
+- **Colour-key transparency**: pixels matching `SPRITE_ALPHA_KEY` are skipped
+
+Sprite data (`Sprite` structs) is stored in `GameState` and is decoupled from the wall/map system.
 
 ### Layer 3: Orchestrator (`main.c`)
 
@@ -390,6 +410,9 @@ classDiagram
     class GameState {
         Player player
         RayHit hits[800]
+        float z_buffer[800]
+        Sprite sprites[64]
+        int sprite_count
         bool game_over
     }
 
@@ -420,8 +443,14 @@ classDiagram
         bool turn_right
     }
 
+    class Sprite {
+        float x, y
+        uint16 texture_id
+    }
+
     GameState *-- Player
     GameState *-- RayHit
+    GameState *-- Sprite
 
     note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
     note for Map "Standalone map data (tiles + info planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."

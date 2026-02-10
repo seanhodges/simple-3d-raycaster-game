@@ -1,16 +1,19 @@
 /*  platform_sdl.c  –  SDL3 front-end / renderer
  *  ───────────────────────────────────────────────
  *  Reads the RayHit buffer from the core and draws vertical strips.
+ *  Renders billboarded sprites after walls using a 1D z-buffer.
  *  Handles window lifecycle and keyboard input.
  */
 #include "platform_sdl.h"
 #include "raycaster.h"
 #include "textures_sdl.h"
+#include "sprites.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <math.h>
 
 /* ── Internal state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
@@ -89,6 +92,95 @@ static unsigned int darken(unsigned int c)
     return (unsigned int)((r >> 1) << 24 | (g >> 1) << 16 | (b >> 1) << 8 | a);
 }
 
+/* ── Sprite rendering (billboarded, z-buffered) ──────────────────── */
+
+static void render_sprites(unsigned int *fb, int fb_stride,
+                           const GameState *gs)
+{
+    if (gs->sprite_count <= 0) return;
+
+    const Player *p = &gs->player;
+
+    /* Get back-to-front sorted sprite order */
+    int sorted_order[MAX_SPRITES];
+    int n = sprites_sort(gs, sorted_order);
+
+    /* Inverse camera matrix determinant:
+     * | plane_x  dir_x |   inv_det = 1 / (plane_x*dir_y - dir_x*plane_y)
+     * | plane_y  dir_y |
+     */
+    float inv_det = 1.0f / (p->plane_x * p->dir_y - p->dir_x * p->plane_y);
+
+    for (int i = 0; i < n; i++) {
+        const Sprite *sp = &gs->sprites[sorted_order[i]];
+
+        /* Translate sprite position relative to player */
+        float sx = sp->x - p->x;
+        float sy = sp->y - p->y;
+
+        /* Transform to camera/view space using inverse camera matrix */
+        float transform_x = inv_det * (p->dir_y * sx - p->dir_x * sy);
+        float transform_y = inv_det * (-p->plane_y * sx + p->plane_x * sy);
+
+        /* Skip sprites behind the camera */
+        if (transform_y <= 0.0f) continue;
+
+        /* Project: screen X position and sprite dimensions */
+        int sprite_screen_x = (int)((SCREEN_W / 2) *
+                              (1.0f + transform_x / transform_y));
+
+        int sprite_h = abs((int)(SCREEN_H / transform_y));
+        int sprite_w = sprite_h;  /* square sprites */
+
+        /* Vertical draw bounds */
+        int draw_start_y = -sprite_h / 2 + SCREEN_H / 2;
+        int draw_end_y   =  sprite_h / 2 + SCREEN_H / 2;
+
+        int y_start = draw_start_y < 0 ? 0 : draw_start_y;
+        int y_end   = draw_end_y >= SCREEN_H ? SCREEN_H - 1 : draw_end_y;
+
+        /* Horizontal draw bounds */
+        int draw_start_x = -sprite_w / 2 + sprite_screen_x;
+        int draw_end_x   =  sprite_w / 2 + sprite_screen_x;
+
+        /* Skip entirely if outside screen (FOV culling) */
+        if (draw_end_x < 0 || draw_start_x >= SCREEN_W) continue;
+
+        int x_start = draw_start_x < 0 ? 0 : draw_start_x;
+        int x_end   = draw_end_x >= SCREEN_W ? SCREEN_W - 1 : draw_end_x;
+
+        /* Draw sprite columns */
+        for (int x = x_start; x <= x_end; x++) {
+            /* Z-buffer test: skip if wall is closer */
+            if (transform_y >= gs->z_buffer[x]) continue;
+
+            /* Texture X coordinate */
+            int tex_x = (int)((x - draw_start_x) * TEX_SIZE / sprite_w);
+            if (tex_x < 0)          tex_x = 0;
+            if (tex_x >= TEX_SIZE)  tex_x = TEX_SIZE - 1;
+
+            /* Draw vertical stripe */
+            for (int y = y_start; y <= y_end; y++) {
+                /* Texture Y coordinate */
+                int d = y * 2 - SCREEN_H + sprite_h;
+                int tex_y = (d * TEX_SIZE) / (sprite_h * 2);
+                if (tex_y < 0)          tex_y = 0;
+                if (tex_y >= TEX_SIZE)  tex_y = TEX_SIZE - 1;
+
+                unsigned int col = tm_get_sprite_pixel(sp->texture_id,
+                                                       tex_x, tex_y);
+
+                /* Transparency: skip magenta alpha-key pixels */
+                if (col == SPRITE_ALPHA_KEY) continue;
+
+                fb[y * fb_stride + x] = col;
+            }
+        }
+    }
+}
+
+/* ── Main rendering ───────────────────────────────────────────────── */
+
 void platform_render(const GameState *gs)
 {
     /* Lock the streaming texture for direct pixel writes */
@@ -143,6 +235,9 @@ void platform_render(const GameState *gs)
         }
 
     }
+
+    /* Sprite rendering pass (after walls, before unlock) */
+    render_sprites(fb, fb_stride, gs);
 
     SDL_UnlockTexture(fb_tex);
 

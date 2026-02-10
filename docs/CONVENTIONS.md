@@ -27,7 +27,8 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 | `rc_` | Core raycasting engine | `rc_update`, `rc_cast` |
 | `map_` | Map file loader | `map_load` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
-| `tm_` | Texture manager | `tm_init`, `tm_shutdown`, `tm_get_pixel` |
+| `tm_` | Texture manager | `tm_init`, `tm_shutdown`, `tm_get_pixel`, `tm_init_sprites`, `tm_get_sprite_pixel` |
+| `sprites_` | Sprite system | `sprites_sort` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
 
 **Rule:** Every public function must carry its layer prefix. Static (file-private) helper functions do not need a prefix.
@@ -45,10 +46,12 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 - **Info plane constants** prefixed with `INFO_`: `INFO_EMPTY`, `INFO_SPAWN_PLAYER_N/E/S/W`, `INFO_TRIGGER_ENDGAME`
 - **Color constants** prefixed with `COL_`: `COL_CEIL`, `COL_FLOOR`, `COL_WALL`, `COL_WALL_SHADE`
 - **Physics constants** use descriptive suffixes: `MOVE_SPD`, `ROT_SPD`, `TICK_RATE`
+- **Sprite constants** prefixed with `SPRITE_`: `SPRITE_TEX_COUNT`, `SPRITE_ALPHA_KEY`
+- **Limit constants** use `MAX_` prefix: `MAX_SPRITES`, `MAX_FRAME`
 
 ### Types
 
-- **Typedef'd structs** in `PascalCase`: `GameState`, `Player`, `Map`, `RayHit`, `Input`
+- **Typedef'd structs** in `PascalCase`: `GameState`, `Player`, `Map`, `RayHit`, `Input`, `Sprite`
 - No `_t` suffix (avoids conflict with POSIX reserved names)
 
 ---

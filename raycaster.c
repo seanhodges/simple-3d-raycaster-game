@@ -198,5 +198,8 @@ void rc_cast(GameState *gs, const Map *map)
         gs->hits[x].wall_x    = wall_x;
         gs->hits[x].side      = side;
         gs->hits[x].wall_type = (tile > 0) ? tile - 1 : 0;
+
+        /* Store perpendicular distance in z-buffer for sprite clipping */
+        gs->z_buffer[x] = perp;
     }
 }

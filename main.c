@@ -43,6 +43,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    if (!tm_init_sprites("assets/sprites.bmp")) {
+        tm_shutdown();
+        platform_shutdown();
+        return 1;
+    }
+
+    /* Place example sprites at different map positions */
+    gs.sprite_count = 3;
+    gs.sprites[0] = (Sprite){ 5.5f,  3.5f, 0 };  /* red diamond, near start  */
+    gs.sprites[1] = (Sprite){ 7.5f,  7.5f, 1 };  /* green circle, mid-map    */
+    gs.sprites[2] = (Sprite){ 3.5f, 13.5f, 2 };  /* blue column, far area    */
+
     /* Main loop (fixed timestep with accumulator) */
     Input  input;
     memset(&input, 0, sizeof(input));

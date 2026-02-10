@@ -1,7 +1,7 @@
-/*  textures_sdl.c  –  texture atlas manager
- *  ────────────────────────────────────
- *  Loads a horizontal strip of TEX_COUNT square textures from a BMP
- *  file.  Falls back to a solid wall colour if the file is missing.
+/*  textures_sdl.c  –  texture atlas manager (walls + sprites)
+ *  ────────────────────────────────────────────────────────
+ *  Loads horizontal strips of square textures from BMP files.
+ *  Falls back to solid colours if files are missing.
  */
 #include "textures_sdl.h"
 
@@ -10,19 +10,75 @@
 #include <string.h>
 #include <stdint.h>
 
-/* ── Internal pixel buffer ────────────────────────────────────────── */
+/* ── Internal pixel buffers ──────────────────────────────────────── */
 
 static unsigned int pixels[TEX_COUNT * TEX_SIZE * TEX_SIZE];
-static bool initialised = false;
-static bool atlas_loaded = false;  /* true only when BMP loaded OK */
+static unsigned int sprite_pixels[SPRITE_TEX_COUNT * TEX_SIZE * TEX_SIZE];
+static bool initialised         = false;
+static bool atlas_loaded        = false;  /* true only when wall BMP loaded  */
+static bool sprite_atlas_loaded = false;  /* true only when sprite BMP loaded*/
 
-/* ── Solid-colour fallback ────────────────────────────────────────── */
+/* ── Solid-colour fallbacks ──────────────────────────────────────── */
 
 static void fill_solid(void)
 {
     int total = TEX_COUNT * TEX_SIZE * TEX_SIZE;
     for (int i = 0; i < total; i++)
         pixels[i] = COL_WALL;
+}
+
+static void fill_sprite_solid(void)
+{
+    int total = SPRITE_TEX_COUNT * TEX_SIZE * TEX_SIZE;
+    for (int i = 0; i < total; i++)
+        sprite_pixels[i] = 0xFF00FFFF;  /* bright magenta fallback */
+}
+
+/* ── Helper: load a horizontal atlas strip into a pixel buffer ───── */
+
+static bool load_atlas(const char *path, unsigned int *buf,
+                       int tex_count, const char *label)
+{
+    SDL_Surface *surf = SDL_LoadBMP(path);
+    if (!surf) {
+        fprintf(stderr, "load_atlas: cannot load %s '%s': %s – using solid colour\n",
+                label, path, SDL_GetError());
+        return false;
+    }
+
+    /* Convert to RGBA8888 for uniform access */
+    SDL_Surface *conv = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA8888);
+    SDL_DestroySurface(surf);
+    if (!conv) {
+        fprintf(stderr, "load_atlas: %s surface conversion failed: %s\n",
+                label, SDL_GetError());
+        return false;
+    }
+
+    /* Atlas layout: tex_count textures side-by-side horizontally. */
+    int expected_w = tex_count * TEX_SIZE;
+    if (conv->w < expected_w || conv->h < TEX_SIZE) {
+        fprintf(stderr, "load_atlas: %s atlas too small (%dx%d, need %dx%d)\n",
+                label, conv->w, conv->h, expected_w, TEX_SIZE);
+        SDL_DestroySurface(conv);
+        return false;
+    }
+
+    const unsigned int *src = (const unsigned int *)conv->pixels;
+    int pitch_pixels = conv->pitch / 4;
+
+    for (int t = 0; t < tex_count; t++) {
+        for (int y = 0; y < TEX_SIZE; y++) {
+            for (int x = 0; x < TEX_SIZE; x++) {
+                int src_x = t * TEX_SIZE + x;
+                int dst   = t * TEX_SIZE * TEX_SIZE + y * TEX_SIZE + x;
+                buf[dst] = src[y * pitch_pixels + src_x];
+            }
+        }
+    }
+
+    SDL_DestroySurface(conv);
+    return true;
 }
 
 /* ── Public API ───────────────────────────────────────────────────── */
@@ -32,61 +88,34 @@ bool tm_init(const char *atlas_path)
     memset(pixels, 0, sizeof(pixels));
     atlas_loaded = false;
 
-    SDL_Surface *surf = SDL_LoadBMP(atlas_path);
-    if (!surf) {
-        fprintf(stderr, "tm_init: cannot load '%s': %s – using solid colour\n",
-                atlas_path, SDL_GetError());
+    if (load_atlas(atlas_path, pixels, TEX_COUNT, "wall")) {
+        atlas_loaded = true;
+    } else {
         fill_solid();
-        initialised = true;
-        return true;
     }
 
-    /* Convert to RGBA8888 for uniform access */
-    SDL_Surface *conv = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA8888);
-    SDL_DestroySurface(surf);
-    if (!conv) {
-        fprintf(stderr, "tm_init: surface conversion failed: %s – using solid colour\n",
-                SDL_GetError());
-        fill_solid();
-        initialised = true;
-        return true;
-    }
-
-    /* Copy pixels from the atlas into our flat buffer.
-     * Atlas layout: TEX_COUNT textures side-by-side horizontally.
-     * Expected atlas width = TEX_COUNT * TEX_SIZE, height = TEX_SIZE. */
-    int expected_w = TEX_COUNT * TEX_SIZE;
-    if (conv->w < expected_w || conv->h < TEX_SIZE) {
-        fprintf(stderr, "tm_init: atlas too small (%dx%d, need %dx%d) – using solid colour\n",
-                conv->w, conv->h, expected_w, TEX_SIZE);
-        SDL_DestroySurface(conv);
-        fill_solid();
-        initialised = true;
-        return true;
-    }
-
-    const unsigned int *src = (const unsigned int *)conv->pixels;
-    int pitch_pixels = conv->pitch / 4;
-
-    for (int t = 0; t < TEX_COUNT; t++) {
-        for (int y = 0; y < TEX_SIZE; y++) {
-            for (int x = 0; x < TEX_SIZE; x++) {
-                int src_x = t * TEX_SIZE + x;
-                int dst   = t * TEX_SIZE * TEX_SIZE + y * TEX_SIZE + x;
-                pixels[dst] = src[y * pitch_pixels + src_x];
-            }
-        }
-    }
-
-    SDL_DestroySurface(conv);
-    atlas_loaded = true;
     initialised = true;
+    return true;
+}
+
+bool tm_init_sprites(const char *atlas_path)
+{
+    memset(sprite_pixels, 0, sizeof(sprite_pixels));
+    sprite_atlas_loaded = false;
+
+    if (load_atlas(atlas_path, sprite_pixels, SPRITE_TEX_COUNT, "sprite")) {
+        sprite_atlas_loaded = true;
+    } else {
+        fill_sprite_solid();
+    }
+
     return true;
 }
 
 void tm_shutdown(void)
 {
     initialised = false;
+    sprite_atlas_loaded = false;
 }
 
 unsigned int tm_get_pixel(uint16_t wall_type, int tex_x, int tex_y)
@@ -94,7 +123,6 @@ unsigned int tm_get_pixel(uint16_t wall_type, int tex_x, int tex_y)
     if (!initialised || !atlas_loaded) return COL_WALL;
 
     /* Clamp inputs */
-    if (wall_type < 0) wall_type = 0;
     if (wall_type >= TEX_COUNT) wall_type = TEX_COUNT - 1;
     if (tex_x < 0)             tex_x = 0;
     if (tex_x >= TEX_SIZE)     tex_x = TEX_SIZE - 1;
@@ -102,4 +130,18 @@ unsigned int tm_get_pixel(uint16_t wall_type, int tex_x, int tex_y)
     if (tex_y >= TEX_SIZE)     tex_y = TEX_SIZE - 1;
 
     return pixels[wall_type * TEX_SIZE * TEX_SIZE + tex_y * TEX_SIZE + tex_x];
+}
+
+unsigned int tm_get_sprite_pixel(uint16_t tex_id, int tex_x, int tex_y)
+{
+    if (!sprite_atlas_loaded) return 0xFF00FFFF;
+
+    /* Clamp inputs */
+    if (tex_id >= SPRITE_TEX_COUNT) tex_id = SPRITE_TEX_COUNT - 1;
+    if (tex_x < 0)                  tex_x = 0;
+    if (tex_x >= TEX_SIZE)          tex_x = TEX_SIZE - 1;
+    if (tex_y < 0)                  tex_y = 0;
+    if (tex_y >= TEX_SIZE)          tex_y = TEX_SIZE - 1;
+
+    return sprite_pixels[tex_id * TEX_SIZE * TEX_SIZE + tex_y * TEX_SIZE + tex_x];
 }
