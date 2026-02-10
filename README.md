@@ -39,7 +39,7 @@ ctest --preset default          # Run tests
 
 ## Customisations
 
-- **Colours:** Edit the `COL_*` defines in `raycaster.h` (RGBA8888 format).
+- **Colours:** Edit the `COL_*` defines in `platform_sdl.h` and `textures_sdl.h` (RGBA8888 format).
 - **FOV:** Change `FOV_DEG` in `raycaster.h` (default 60°).
 - **Speed:** Tweak `MOVE_SPD` and `ROT_SPD` in `raycaster.c`.
-- **Resolution:** Change `SCREEN_W` / `SCREEN_H` in `raycaster.h`.
+- **Resolution:** Change `SCREEN_W` / `SCREEN_H` in `game_globals.h`.
