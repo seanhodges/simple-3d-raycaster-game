@@ -454,3 +454,18 @@ typedef struct Player {
 ```
 
 This allows files to forward-declare `struct Player;` without including the full header — essential as the codebase grows and circular dependencies may emerge.
+
+### 7. Info Plane Border Convention
+
+The `map_info.txt` file uses an `X` border around its grid to visually frame the content and mirror the wall border in `map.txt`. This makes the two files easy to compare side-by-side in an editor.
+
+```
+XXXXXXXXXXXXXXXX
+X   F          X
+X              X
+X   >          X
+...
+XXXXXXXXXXXXXXXX
+```
+
+The parser treats any unrecognised character as `INFO_EMPTY`, so the `X` border is purely decorative and has no effect on gameplay. When editing `map_info.txt`, maintain the `X` border at all edges and keep dimensions aligned with `map.txt`.

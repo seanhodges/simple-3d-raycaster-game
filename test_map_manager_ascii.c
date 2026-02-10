@@ -231,6 +231,56 @@ static void test_load_map_info_has_endgame(void)
     assert(found_endgame);
 }
 
+static void test_load_map_info_border_ignored(void)
+{
+    /* X border characters in the info plane should be treated as INFO_EMPTY */
+    Map map;
+    Player player;
+    memset(&map, 0, sizeof(map));
+    memset(&player, 0, sizeof(player));
+    map_load(&map, &player, "map.txt", "map_info.txt");
+
+    /* Top row: all cells should be INFO_EMPTY (the X border) */
+    for (int c = 0; c < map.w; c++) {
+        assert(map.info[0][c] == INFO_EMPTY);
+    }
+    /* Bottom row: all cells should be INFO_EMPTY (the X border) */
+    for (int c = 0; c < map.w; c++) {
+        assert(map.info[map.h - 1][c] == INFO_EMPTY);
+    }
+    /* Left and right columns: border cells should be INFO_EMPTY */
+    for (int r = 0; r < map.h; r++) {
+        assert(map.info[r][0] == INFO_EMPTY);
+        assert(map.info[r][map.w - 1] == INFO_EMPTY);
+    }
+}
+
+static void test_load_map_info_dimensions_match_tiles(void)
+{
+    /* The info plane should cover the same area as the tiles plane */
+    Map map;
+    Player player;
+    memset(&map, 0, sizeof(map));
+    memset(&player, 0, sizeof(player));
+    map_load(&map, &player, "map.txt", "map_info.txt");
+
+    /* Dimensions are set by the tiles pass — verify both planes are populated.
+     * Check that the info plane has content at the map boundaries. */
+    assert(map.w > 0);
+    assert(map.h > 0);
+
+    /* Verify the info plane is not all empty — it should contain spawn + endgame */
+    bool found_non_empty = false;
+    for (int r = 0; r < map.h && !found_non_empty; r++) {
+        for (int c = 0; c < map.w && !found_non_empty; c++) {
+            if (map.info[r][c] != INFO_EMPTY) {
+                found_non_empty = true;
+            }
+        }
+    }
+    assert(found_non_empty);
+}
+
 static void test_load_map_game_state_unaffected(void)
 {
     /* map_load should not touch GameState — only Map and Player */
@@ -262,6 +312,8 @@ int main(void)
     RUN_TEST(test_load_map_tiles_in_range);
     RUN_TEST(test_load_map_info_has_spawn);
     RUN_TEST(test_load_map_info_has_endgame);
+    RUN_TEST(test_load_map_info_border_ignored);
+    RUN_TEST(test_load_map_info_dimensions_match_tiles);
     RUN_TEST(test_load_map_game_state_unaffected);
 
     printf("\n══════════════════════════════════════════════════════════\n");

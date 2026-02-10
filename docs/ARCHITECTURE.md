@@ -345,16 +345,32 @@ Tile values encode wall presence and texture type: `0` = floor (walkable), `> 0`
 
 ### Info Plane (`map_info.txt`)
 
-Defines metadata — player spawn position/direction and triggers:
+Defines metadata — player spawn position/direction and triggers. The file uses an `X` border to visually frame the grid and aid readability:
+
+```
+XXXXXXXXXXXXXXXX
+X   F          X
+X              X
+X              X
+X              X
+X              X
+X   >          X
+X              X
+...
+XXXXXXXXXXXXXXXX
+```
 
 | Character | Meaning | Info Value |
 |---|---|---|
 | ` ` (space) | Empty (no metadata) | `0` (`INFO_EMPTY`) |
+| `X` | Border / decoration (ignored) | `0` (`INFO_EMPTY`) |
 | `^` | Player spawn, facing north | `1` (`INFO_SPAWN_PLAYER_N`) |
 | `>` | Player spawn, facing east | `2` (`INFO_SPAWN_PLAYER_E`) |
 | `V` | Player spawn, facing south | `3` (`INFO_SPAWN_PLAYER_S`) |
 | `<` | Player spawn, facing west | `4` (`INFO_SPAWN_PLAYER_W`) |
 | `F` or `f` | Endgame trigger | `5` (`INFO_TRIGGER_ENDGAME`) |
+
+Any unrecognised character (including the `X` border) is treated as `INFO_EMPTY`. The `X` border is a visual convention that mirrors the wall border in `map.txt`, making the two files easy to compare side-by-side.
 
 The player spawns at the **center** of the spawn cell (`col + 0.5, row + 0.5`) facing the direction indicated by the arrow character. The camera plane is derived from `FOV_DEG`, perpendicular to the facing direction.
 
