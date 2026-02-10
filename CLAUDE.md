@@ -7,13 +7,21 @@ A lightweight 3D-style raycasting engine written in C with SDL3. Educational/hob
 ## Build & Run
 
 ```bash
-make              # Build on Linux/macOS (requires gcc, SDL3, pkg-config)
-make OS=windows   # Cross-compile for Windows with MinGW
-make clean        # Remove build artifacts
-./raycaster       # Run the game
+cmake -B build            # Configure (detects SDL3 via pkg-config or CMake)
+cmake --build build       # Build
+./build/raycaster         # Run the game
 ```
 
-**Dependency:** SDL3 must be installed and discoverable via `pkg-config`.
+**Presets** (optional, requires CMake >= 3.20):
+
+```bash
+cmake --preset default          # Configure release build in build/
+cmake --build --preset default  # Build
+cmake --preset debug            # Configure debug build in build-debug/
+cmake --build --preset debug    # Build debug
+```
+
+**Dependency:** SDL3 must be installed and discoverable via `pkg-config` or CMake's `find_package`.
 
 ## Architecture and Conventions
 
@@ -25,7 +33,14 @@ Always review these files and follow the instructions you find there. If you nee
 ## Testing
 
 ```bash
-make test         # Build and run all unit tests (no SDL required)
+cmake --build build             # Build everything (including tests)
+ctest --test-dir build          # Run all tests
+```
+
+Or with presets:
+
+```bash
+ctest --preset default          # Run tests for the default (release) build
 ```
 
 Tests are split across two files:
@@ -33,6 +48,8 @@ Tests are split across two files:
 - `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o`. Tests the real file parser with `map.txt` and `map_info.txt` without assuming specific map contents.
 
 Run from the project root (test_map_manager_ascii needs `map.txt` and `map_info.txt` in the working directory).
+
+The build system copies `map.txt` into the build directory automatically so tests can be run from there.
 
 ## Controls
 

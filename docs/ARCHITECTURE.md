@@ -71,9 +71,8 @@ graph TB
 |---|---|---|
 | **C (C11)** | Language | Raycasting is a fundamentally low-level algorithm — pointer arithmetic, fixed-size arrays, tight loops. C11 is simple and gives direct control with zero runtime overhead. |
 | **SDL3** | The default frontend for the game; handling windowing, input, rendering | The de facto standard for cross-platform multimedia in C. SDL provides a 2D renderer, keyboard state polling, and high-resolution timers. SDL3 (not SDL2) is used here for its modernized API. |
-| **GNU Make** | Build system | Extremely lightweight for a simple C project. No boilerplate or generator steps, easy to package. Optimised for simple text editors and CLI. The `Makefile` handles Linux, macOS, and Windows cross-compilation. |
-| **pkg-config** | Dependency discovery | Locates headers and libraries portably. Avoids hardcoded paths. |
-| **`-Wall -Wextra -O2`** | Compiler discipline | Maximum warnings catch bugs at compile time. `-O2` ensures the tight raycasting loop runs at full speed even on modest hardware. |
+| **CMake** | Build system | Industry-standard cross-platform build system generator. Handles compiler detection, dependency discovery (via `pkg-config` or native `find_package`), and test integration through CTest. Presets provide reproducible build configurations. |
+| **`-Wall -Wextra`** | Compiler discipline | Maximum warnings catch bugs at compile time. Release builds use `-O2` to ensure the tight raycasting loop runs at full speed even on modest hardware. |
 
 ---
 
