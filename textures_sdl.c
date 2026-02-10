@@ -14,8 +14,7 @@
 
 static unsigned int pixels[TEX_COUNT * TEX_SIZE * TEX_SIZE];
 static unsigned int sprite_pixels[SPRITE_TEX_COUNT * TEX_SIZE * TEX_SIZE];
-static bool initialised         = false;
-static bool atlas_loaded        = false;  /* true only when wall BMP loaded  */
+static bool tile_atlas_loaded   = false;  /* true only when wall BMP loaded  */
 static bool sprite_atlas_loaded = false;  /* true only when sprite BMP loaded*/
 
 /* ── Solid-colour fallbacks ──────────────────────────────────────── */
@@ -83,18 +82,17 @@ static bool load_atlas(const char *path, unsigned int *buf,
 
 /* ── Public API ───────────────────────────────────────────────────── */
 
-bool tm_init(const char *atlas_path)
+bool tm_init_tiles(const char *atlas_path)
 {
     memset(pixels, 0, sizeof(pixels));
-    atlas_loaded = false;
+    tile_atlas_loaded = false;
 
     if (load_atlas(atlas_path, pixels, TEX_COUNT, "wall")) {
-        atlas_loaded = true;
+        tile_atlas_loaded = true;
     } else {
         fill_solid();
     }
 
-    initialised = true;
     return true;
 }
 
@@ -114,13 +112,13 @@ bool tm_init_sprites(const char *atlas_path)
 
 void tm_shutdown(void)
 {
-    initialised = false;
+    tile_atlas_loaded = false;
     sprite_atlas_loaded = false;
 }
 
-unsigned int tm_get_pixel(uint16_t wall_type, int tex_x, int tex_y)
+unsigned int tm_get_tile_pixel(uint16_t wall_type, int tex_x, int tex_y)
 {
-    if (!initialised || !atlas_loaded) return COL_WALL;
+    if (!tile_atlas_loaded) return COL_WALL;
 
     /* Clamp inputs */
     if (wall_type >= TEX_COUNT) wall_type = TEX_COUNT - 1;

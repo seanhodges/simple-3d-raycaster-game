@@ -18,7 +18,7 @@
 /**  Load wall texture atlas from a BMP file. Falls back to a solid wall
  *   colour (COL_WALL) if the file cannot be loaded. Returns false
  *   only on unrecoverable error. */
-bool tm_init(const char *atlas_path);
+bool tm_init_tiles(const char *atlas_path);
 
 /**  Load sprite texture atlas from a BMP file. Falls back to a solid
  *   colour if the file cannot be loaded. Returns false only on
@@ -32,7 +32,7 @@ void tm_shutdown(void);
  *   wall_type: 0 .. TEX_COUNT-1
  *   tex_x, tex_y: 0 .. TEX_SIZE-1
  *   Returns colour in RGBA8888 format. */
-unsigned int tm_get_pixel(uint16_t wall_type, int tex_x, int tex_y);
+unsigned int tm_get_tile_pixel(uint16_t wall_type, int tex_x, int tex_y);
 
 /**  Sample a pixel from the sprite atlas.
  *   tex_id: 0 .. SPRITE_TEX_COUNT-1

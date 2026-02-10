@@ -226,7 +226,7 @@ void platform_render(const GameState *gs)
             if (tex_y < 0)            tex_y = 0;
             if (tex_y >= TEX_SIZE)    tex_y = TEX_SIZE - 1;
 
-            unsigned int col = tm_get_pixel(wt, tex_x, tex_y);
+            unsigned int col = tm_get_tile_pixel(wt, tex_x, tex_y);
 
             /* Darken y-side hits for depth cue */
             if (side == 1) col = darken(col);

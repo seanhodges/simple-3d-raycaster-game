@@ -27,7 +27,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 | `rc_` | Core raycasting engine | `rc_update`, `rc_cast` |
 | `map_` | Map file loader | `map_load` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
-| `tm_` | Texture manager | `tm_init`, `tm_shutdown`, `tm_get_pixel`, `tm_init_sprites`, `tm_get_sprite_pixel` |
+| `tm_` | Texture manager | `tm_init_tiles`, `tm_init_sprites`, `tm_shutdown`, `tm_get_tile_pixel`, `tm_get_sprite_pixel` |
 | `sprites_` | Sprite system | `sprites_sort` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
 

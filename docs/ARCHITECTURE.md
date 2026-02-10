@@ -124,10 +124,10 @@ The platform layer **reads from** the core but never writes to it, except throug
 
 Responsibilities:
 - Load a horizontal texture atlas (BMP) containing `TEX_COUNT` (10) square textures of `TEX_SIZE` (64) pixels each
-- Provide `tm_get_pixel(wall_type, tex_x, tex_y)` for colour sampling
+- Provide `tm_get_tile_pixel(wall_type, tex_x, tex_y)` for colour sampling
 - Fall back to a solid wall colour (`COL_WALL`) if the BMP file is missing
 
-The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
+The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_tile_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
 
 The texture manager also handles sprite textures via `tm_init_sprites()` and `tm_get_sprite_pixel()`. Sprite textures use colour-key transparency: pixels matching `#980088` (magenta, `SPRITE_ALPHA_KEY`) are treated as transparent and skipped during rendering.
 

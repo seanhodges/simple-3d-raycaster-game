@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (!tm_init("assets/textures.bmp")) {
+    if (!tm_init_tiles("assets/textures.bmp")) {
         platform_shutdown();
         return 1;
     }
