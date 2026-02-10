@@ -14,18 +14,27 @@ A lightweight raycaster engine featuring a simple 3D-style maze game.
 
 ## Building
 
-**Prerequisites:** SDL3 development libraries installed and discoverable via `pkg-config`.
+**Prerequisites:** CMake >= 3.20, a C11 compiler, and SDL3 development libraries installed and discoverable via `pkg-config` or CMake's `find_package`.
 
 ```bash
-# Linux / macOS
-make
-
-# Windows (MinGW)
-make OS=windows
+# Configure and build
+cmake -B build
+cmake --build build
 
 # Run
-./raycaster              # uses map.txt in current directory
-./raycaster map.txt      # load specific map file
+./build/raycaster              # uses map.txt (copied to build dir automatically)
+./build/raycaster map.txt      # load specific map file
+
+# Run tests
+ctest --test-dir build
+```
+
+Alternatively, use CMake presets:
+
+```bash
+cmake --preset default          # Configure release build
+cmake --build --preset default  # Build
+ctest --preset default          # Run tests
 ```
 
 ## Customisations
@@ -34,4 +43,3 @@ make OS=windows
 - **FOV:** Change `FOV_DEG` in `raycaster.h` (default 60°).
 - **Speed:** Tweak `MOVE_SPD` and `ROT_SPD` in `raycaster.c`.
 - **Resolution:** Change `SCREEN_W` / `SCREEN_H` in `raycaster.h`.
-

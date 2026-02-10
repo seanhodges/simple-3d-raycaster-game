@@ -1,4 +1,17 @@
-**/*.o
+# Build directories (CMake)
+build/
+build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Compiled binaries
 raycaster
+raycaster.exe
 test_raycaster
 test_map_manager_ascii
+
+# Object files
+**/*.o

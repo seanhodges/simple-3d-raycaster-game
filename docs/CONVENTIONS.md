@@ -104,7 +104,7 @@ These use the `──` (U+2500) box-drawing character, not ASCII dashes. The lin
 
 ### Language Standard
 
-- **C11** (`-std=c11`), enforced by the Makefile
+- **C11** (`-std=c11`), enforced by CMake (`CMAKE_C_STANDARD 11`)
 - `bool` via `<stdbool.h>` (not `int` for boolean values)
 - No C++ features, no compiler extensions (GNU or otherwise)
 
@@ -157,9 +157,7 @@ This visual alignment is intentional and should be maintained when adding new fi
 
 ### Compiler Warnings
 
-```makefile
-CFLAGS = -std=c11 -Wall -Wextra -O2
-```
+CMake enforces `-Wall -Wextra` (or `/W4` on MSVC). Release builds add optimisation automatically via `CMAKE_BUILD_TYPE`.
 
 **Rule: Zero warnings.** The codebase compiles cleanly with `-Wall -Wextra`. Unused parameters are silenced explicitly:
 
@@ -288,14 +286,15 @@ This is a deliberate design choice:
 ### Running Tests
 
 ```bash
-make test        # Build and run all tests (no SDL required)
+cmake --build build       # Build everything including tests
+ctest --test-dir build    # Run all tests
 ```
 
 Tests live in two files:
 - `test_raycaster.c` — links against `raycaster.o` and `map_manager_fake.o` (a hardcoded test map). Filesystem-independent.
-- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt` and `map_info.txt` in the working directory.
+- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt` and `map_info.txt` in the working directory. (copied automatically by the build).
 
-Both have no SDL dependency. Run from the project root with `make test`.
+Both have no SDL dependency.
 
 ### Test Architecture
 
@@ -326,7 +325,7 @@ This avoids depending on `map.txt` for most tests. Only `test_load_map_*` and `t
 4. Add `RUN_TEST(test_your_name);` to `main()`
 5. For tests that need a known map, use the fake map module (`map_manager_fake.c`) via `map_load()` in `test_raycaster.c`
 6. For tests that exercise the real file parser, add them to `test_map_manager_ascii.c` — avoid assuming specific map contents
-7. Run `make test` — zero warnings required, zero failures expected
+7. Run `ctest --test-dir build` — zero warnings required, zero failures expected
 
 ---
 
