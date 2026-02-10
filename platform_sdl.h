@@ -11,7 +11,7 @@
 bool platform_init(const char *title);
 void platform_shutdown(void);
 bool platform_poll_input(Input *in);
-void platform_render(const GameState *gs);
+void platform_render(const GameState *gs, const Map *map);
 
 /**  Render the end-game screen */
 void platform_render_end_screen(void);

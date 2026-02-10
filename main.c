@@ -17,10 +17,12 @@ int main(int argc, char *argv[])
 {
     (void)argc; (void)argv;
 
-    const char *tiles_path = "map.txt";
-    const char *info_path  = "map_info.txt";
-    if (argc > 1) tiles_path = argv[1];
-    if (argc > 2) info_path  = argv[2];
+    const char *tiles_path   = "map.txt";
+    const char *info_path    = "map_info.txt";
+    const char *sprites_path = "map_sprites.txt";
+    if (argc > 1) tiles_path   = argv[1];
+    if (argc > 2) info_path    = argv[2];
+    if (argc > 3) sprites_path = argv[3];
 
     /* Initialise */
     Map map;
@@ -29,7 +31,7 @@ int main(int argc, char *argv[])
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&map, &gs.player, tiles_path, info_path)) {
+    if (!map_load(&map, &gs.player, tiles_path, info_path, sprites_path)) {
         fprintf(stderr, "main: failed to load map\n");
         return 1;
     }
@@ -48,12 +50,6 @@ int main(int argc, char *argv[])
         platform_shutdown();
         return 1;
     }
-
-    /* Place example sprites at different map positions */
-    gs.sprite_count = 3;
-    gs.sprites[0] = (Sprite){ 5.5f,  3.5f, 0 };  /* red diamond, near start  */
-    gs.sprites[1] = (Sprite){ 7.5f,  7.5f, 1 };  /* green circle, mid-map    */
-    gs.sprites[2] = (Sprite){ 3.5f, 13.5f, 2 };  /* blue column, far area    */
 
     /* Main loop (fixed timestep with accumulator) */
     Input  input;
@@ -83,7 +79,7 @@ int main(int argc, char *argv[])
 
         /* Render at display rate */
         rc_cast(&gs, &map);
-        platform_render(&gs);
+        platform_render(&gs, &map);
 
         /* Player reached the endgame trigger */
         if (gs.game_over) running = false;

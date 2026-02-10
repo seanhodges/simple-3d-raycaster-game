@@ -78,7 +78,7 @@ static void load_fake_map(Map *map, GameState *gs)
 {
     memset(map, 0, sizeof(*map));
     memset(gs, 0, sizeof(*gs));
-    bool ok = map_load(map, &gs->player, "ignored", "ignored");
+    bool ok = map_load(map, &gs->player, "ignored", "ignored", "ignored");
     assert(ok);
 }
 
@@ -773,60 +773,90 @@ static void test_fake_map_endgame_triggers_game_over(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  Sprite sorting tests                                               */
+/*  Sprite collect-and-sort tests                                      */
 /* ═══════════════════════════════════════════════════════════════════ */
 
-static void test_sprites_sort_empty(void)
+static void test_sprites_collect_empty(void)
 {
-    /* Zero sprites should return count 0 */
+    /* Empty sprite plane should return count 0 */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
-    gs.sprite_count = 0;
 
-    int order[MAX_SPRITES];
-    int n = sprites_sort(&gs, order);
+    Player p = gs.player;
+    Sprite out[16];
+    int n = sprites_collect_and_sort(&map, &p, out, 16);
     assert(n == 0);
 }
 
-static void test_sprites_sort_back_to_front(void)
+static void test_sprites_collect_back_to_front(void)
 {
     /* Three sprites at different distances should sort farthest first */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 20, 20, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    gs.sprite_count = 3;
-    gs.sprites[0] = (Sprite){ 7.5f, 5.5f, 0 };  /* dist = 2.0 (closest)  */
-    gs.sprites[1] = (Sprite){15.5f, 5.5f, 1 };  /* dist = 10.0 (farthest) */
-    gs.sprites[2] = (Sprite){10.5f, 5.5f, 2 };  /* dist = 5.0 (middle)    */
+    /* Place sprites at (7,5), (15,5), (10,5) — distances 2, 10, 5 from player */
+    map.sprites[5][7]  = 1;  /* closest,  tex 0 */
+    map.sprites[5][15] = 2;  /* farthest, tex 1 */
+    map.sprites[5][10] = 3;  /* middle,   tex 2 */
 
-    int order[MAX_SPRITES];
-    int n = sprites_sort(&gs, order);
+    Player p = gs.player;
+    Sprite out[16];
+    int n = sprites_collect_and_sort(&map, &p, out, 16);
     assert(n == 3);
 
-    /* First in order should be farthest (index 1, dist 10.0) */
-    assert(order[0] == 1);
-    /* Second should be middle (index 2, dist 5.0) */
-    assert(order[1] == 2);
-    /* Last should be closest (index 0, dist 2.0) */
-    assert(order[2] == 0);
+    /* First should be farthest (col 15, dist ~10) */
+    ASSERT_NEAR(out[0].x, 15.5f, 0.01f);
+    /* Second should be middle (col 10, dist ~5) */
+    ASSERT_NEAR(out[1].x, 10.5f, 0.01f);
+    /* Last should be closest (col 7, dist ~2) */
+    ASSERT_NEAR(out[2].x, 7.5f, 0.01f);
 }
 
-static void test_sprites_sort_single(void)
+static void test_sprites_collect_single(void)
 {
-    /* Single sprite should return that sprite's index */
+    /* Single sprite should be collected correctly */
     Map map;
     GameState gs;
     init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
 
-    gs.sprite_count = 1;
-    gs.sprites[0] = (Sprite){ 7.5f, 5.5f, 0 };
+    map.sprites[5][7] = 1;  /* tex_id 0 */
 
-    int order[MAX_SPRITES];
-    int n = sprites_sort(&gs, order);
+    Player p = gs.player;
+    Sprite out[16];
+    int n = sprites_collect_and_sort(&map, &p, out, 16);
     assert(n == 1);
-    assert(order[0] == 0);
+    ASSERT_NEAR(out[0].x, 7.5f, 0.01f);
+    ASSERT_NEAR(out[0].y, 5.5f, 0.01f);
+    assert(out[0].texture_id == 0);
+}
+
+static void test_sprites_collect_texture_ids(void)
+{
+    /* Grid value N should produce texture_id N-1 */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    map.sprites[3][3] = 4;  /* tex_id 3 */
+
+    Player p = gs.player;
+    Sprite out[16];
+    int n = sprites_collect_and_sort(&map, &p, out, 16);
+    assert(n == 1);
+    assert(out[0].texture_id == 3);
+}
+
+static void test_fake_map_has_sprites(void)
+{
+    /* The fake map should contain sprites in its sprite plane */
+    Map map;
+    GameState gs;
+    load_fake_map(&map, &gs);
+
+    assert(map.sprites[1][4] == 1);  /* tex_id 0 */
+    assert(map.sprites[2][5] == 2);  /* tex_id 1 */
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -910,10 +940,12 @@ int main(void)
     RUN_TEST(test_walk_and_cast);
     RUN_TEST(test_fake_map_endgame_triggers_game_over);
 
-    printf("\n── sprites_sort ────────────────────────────────────────\n");
-    RUN_TEST(test_sprites_sort_empty);
-    RUN_TEST(test_sprites_sort_back_to_front);
-    RUN_TEST(test_sprites_sort_single);
+    printf("\n── sprites_collect_and_sort ─────────────────────────────\n");
+    RUN_TEST(test_sprites_collect_empty);
+    RUN_TEST(test_sprites_collect_back_to_front);
+    RUN_TEST(test_sprites_collect_single);
+    RUN_TEST(test_sprites_collect_texture_ids);
+    RUN_TEST(test_fake_map_has_sprites);
 
     printf("\n── z-buffer ────────────────────────────────────────────\n");
     RUN_TEST(test_z_buffer_filled);

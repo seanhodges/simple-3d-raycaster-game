@@ -45,11 +45,11 @@ ctest --preset default          # Run tests for the default (release) build
 
 Tests are split across two files:
 - `test_raycaster.c` — links against `raycaster.o` and `map_manager_fake.o`. Uses a hardcoded test map with all tile types. Covers map structure validation, player movement/collision, DDA raycasting, and integration scenarios. No filesystem dependency.
-- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o`. Tests the real file parser with `map.txt` and `map_info.txt` without assuming specific map contents.
+- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o`. Tests the real file parser with `map.txt`, `map_info.txt`, and `map_sprites.txt` without assuming specific map contents.
 
-Run from the project root (test_map_manager_ascii needs `map.txt` and `map_info.txt` in the working directory).
+Run from the project root (test_map_manager_ascii needs `map.txt`, `map_info.txt`, and `map_sprites.txt` in the working directory).
 
-The build system copies `map.txt` into the build directory automatically so tests can be run from there.
+The build system copies map files into the build directory automatically so tests can be run from there.
 
 ## Controls
 

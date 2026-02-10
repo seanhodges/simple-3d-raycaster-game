@@ -28,7 +28,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 | `map_` | Map file loader | `map_load` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
 | `tm_` | Texture manager | `tm_init_tiles`, `tm_init_sprites`, `tm_shutdown`, `tm_get_tile_pixel`, `tm_get_sprite_pixel` |
-| `sprites_` | Sprite system | `sprites_sort` |
+| `sprites_` | Sprite system | `sprites_collect_and_sort` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
 
 **Rule:** Every public function must carry its layer prefix. Static (file-private) helper functions do not need a prefix.
@@ -46,8 +46,8 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 - **Info plane constants** prefixed with `INFO_`: `INFO_EMPTY`, `INFO_SPAWN_PLAYER_N/E/S/W`, `INFO_TRIGGER_ENDGAME`
 - **Color constants** prefixed with `COL_`: `COL_CEIL`, `COL_FLOOR`, `COL_WALL`, `COL_WALL_SHADE`
 - **Physics constants** use descriptive suffixes: `MOVE_SPD`, `ROT_SPD`, `TICK_RATE`
-- **Sprite constants** prefixed with `SPRITE_`: `SPRITE_TEX_COUNT`, `SPRITE_ALPHA_KEY`
-- **Limit constants** use `MAX_` prefix: `MAX_SPRITES`, `MAX_FRAME`
+- **Sprite constants** prefixed with `SPRITE_`: `SPRITE_EMPTY`, `SPRITE_TEX_COUNT`, `SPRITE_ALPHA_KEY`
+- **Limit constants** use `MAX_` prefix: `MAX_FRAME`
 
 ### Types
 
@@ -295,7 +295,7 @@ ctest --test-dir build    # Run all tests
 
 Tests live in two files:
 - `test_raycaster.c` — links against `raycaster.o` and `map_manager_fake.o` (a hardcoded test map). Filesystem-independent.
-- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt` and `map_info.txt` in the working directory. (copied automatically by the build).
+- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt`, `map_info.txt`, and `map_sprites.txt` in the working directory (copied automatically by the build).
 
 Both have no SDL dependency.
 
@@ -357,6 +357,7 @@ Note that the X-axis check happens first, and the Y-axis check uses the **update
 - Player position: floating-point, center of a cell is `(col + 0.5, row + 0.5)`
 - Map tiles indexed as `tiles[row][col]` (row-major, Y-first)
 - Map info indexed as `info[row][col]` (same layout as tiles)
+- Map sprites indexed as `sprites[row][col]` (same layout as tiles)
 
 ### Units
 
@@ -395,7 +396,7 @@ Functions that only read a struct take `const *`. Functions that write take non-
 
 ```c
 void rc_update(GameState *gs, const Map *map, const Input *in, float dt);  // writes gs, reads map & in
-void platform_render(const GameState *gs);                  // reads gs only
+void platform_render(const GameState *gs, const Map *map);   // reads gs and map
 bool platform_poll_input(Input *in);                        // writes in
 ```
 

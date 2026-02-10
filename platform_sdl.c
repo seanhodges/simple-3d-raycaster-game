@@ -95,15 +95,15 @@ static unsigned int darken(unsigned int c)
 /* ── Sprite rendering (billboarded, z-buffered) ──────────────────── */
 
 static void render_sprites(unsigned int *fb, int fb_stride,
-                           const GameState *gs)
+                           const GameState *gs, const Map *map)
 {
-    if (gs->sprite_count <= 0) return;
-
     const Player *p = &gs->player;
 
-    /* Get back-to-front sorted sprite order */
-    int sorted_order[MAX_SPRITES];
-    int n = sprites_sort(gs, sorted_order);
+    /* Collect sprites from the map grid and sort back-to-front */
+    Sprite sprite_buf[MAP_MAX_W * MAP_MAX_H];
+    int n = sprites_collect_and_sort(map, p, sprite_buf,
+                                     MAP_MAX_W * MAP_MAX_H);
+    if (n <= 0) return;
 
     /* Inverse camera matrix determinant:
      * | plane_x  dir_x |   inv_det = 1 / (plane_x*dir_y - dir_x*plane_y)
@@ -112,7 +112,7 @@ static void render_sprites(unsigned int *fb, int fb_stride,
     float inv_det = 1.0f / (p->plane_x * p->dir_y - p->dir_x * p->plane_y);
 
     for (int i = 0; i < n; i++) {
-        const Sprite *sp = &gs->sprites[sorted_order[i]];
+        const Sprite *sp = &sprite_buf[i];
 
         /* Translate sprite position relative to player */
         float sx = sp->x - p->x;
@@ -181,7 +181,7 @@ static void render_sprites(unsigned int *fb, int fb_stride,
 
 /* ── Main rendering ───────────────────────────────────────────────── */
 
-void platform_render(const GameState *gs)
+void platform_render(const GameState *gs, const Map *map)
 {
     /* Lock the streaming texture for direct pixel writes */
     void *tex_pixels = NULL;
@@ -237,7 +237,7 @@ void platform_render(const GameState *gs)
     }
 
     /* Sprite rendering pass (after walls, before unlock) */
-    render_sprites(fb, fb_stride, gs);
+    render_sprites(fb, fb_stride, gs, map);
 
     SDL_UnlockTexture(fb_tex);
 

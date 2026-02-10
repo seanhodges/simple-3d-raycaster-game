@@ -12,8 +12,8 @@
 #define MAP_MAX_W 64
 #define MAP_MAX_H 64
 
-/* ── Sprite limits ────────────────────────────────────────────────── */
-#define MAX_SPRITES 64           /* maximum sprites in the map         */
+/* ── Sprite constants ─────────────────────────────────────────────── */
+#define SPRITE_EMPTY 0            /* no sprite in this cell              */
 
 /* ── Per-column ray result ─────────────────────────────────────────── */
 typedef struct RayHit {
@@ -30,16 +30,17 @@ typedef struct Player {
     float plane_x, plane_y; /* camera plane (perpendicular to dir)   */
 } Player;
 
-/* ── Sprite instance ──────────────────────────────────────────────── */
+/* ── Sprite instance (collected at render time from the grid) ─────── */
 typedef struct Sprite {
-    float    x, y;        /* position in map units                    */
-    uint16_t texture_id;  /* index into sprite texture atlas          */
+    float    x, y;        /* position in map units (cell centre)       */
+    uint16_t texture_id;  /* index into sprite texture atlas           */
 } Sprite;
 
 /* ── World map ─────────────────────────────────────────────────────── */
 typedef struct Map {
-    uint16_t  tiles[MAP_MAX_H][MAP_MAX_W]; /* geometry: 0=floor, >0=wall */
-    uint16_t  info[MAP_MAX_H][MAP_MAX_W];  /* metadata: spawn, triggers  */
+    uint16_t  tiles[MAP_MAX_H][MAP_MAX_W];   /* geometry: 0=floor, >0=wall  */
+    uint16_t  info[MAP_MAX_H][MAP_MAX_W];    /* metadata: spawn, triggers   */
+    uint16_t  sprites[MAP_MAX_H][MAP_MAX_W]; /* sprites: 0=empty, >0=tex+1  */
     int       w, h;
 } Map;
 
@@ -48,8 +49,6 @@ typedef struct GameState {
     Player  player;
     RayHit  hits[SCREEN_W];      /* filled every frame by rc_cast()    */
     float   z_buffer[SCREEN_W];  /* 1D depth buffer for sprite clipping*/
-    Sprite  sprites[MAX_SPRITES];/* sprite instances in the world      */
-    int     sprite_count;        /* number of active sprites           */
     bool    game_over;           /* true when player reaches endgame   */
 } GameState;
 

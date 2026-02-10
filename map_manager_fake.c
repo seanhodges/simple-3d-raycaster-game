@@ -18,6 +18,10 @@
  *  row 1, col 1: INFO_SPAWN_PLAYER_E  (player spawn facing east)
  *  row 1, col 3: INFO_TRIGGER_ENDGAME (endgame trigger)
  *
+ *  Sprites plane:
+ *  row 1, col 4: sprite texture 0  (in corridor, east of trigger)
+ *  row 2, col 5: sprite texture 1  (open floor cell)
+ *
  *  Player spawn: (1.5, 1.5)  facing east
  *  Wall types present: 0 (X/#), 1–9 (digits)
  */
@@ -50,10 +54,11 @@ static const float FAKE_PLAYER_Y = 1.5f;
 /* ── map_load (fake implementation) ───────────────────────────────── */
 
 bool map_load(Map *map, Player *player, const char *tiles_path,
-              const char *info_path)
+              const char *info_path, const char *sprites_path)
 {
     (void)tiles_path;  /* ignored — always returns the hardcoded map */
     (void)info_path;
+    (void)sprites_path;
 
     memset(map, 0, sizeof(*map));
     map->w = FAKE_W;
@@ -66,6 +71,10 @@ bool map_load(Map *map, Player *player, const char *tiles_path,
     /* Info plane: spawn and endgame trigger */
     map->info[1][1] = INFO_SPAWN_PLAYER_E;
     map->info[1][3] = INFO_TRIGGER_ENDGAME;
+
+    /* Sprites plane: two test sprites on floor cells */
+    map->sprites[1][4] = 1;  /* texture_id 0 */
+    map->sprites[2][5] = 2;  /* texture_id 1 */
 
     player->x = FAKE_PLAYER_X;
     player->y = FAKE_PLAYER_Y;

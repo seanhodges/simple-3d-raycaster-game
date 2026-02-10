@@ -3,10 +3,12 @@
 
 #include "game_globals.h"
 
-/**  Sort sprites by distance to player (back-to-front, farthest first).
- *   Fills sorted_order[] with indices into gs->sprites[].
- *   sorted_order must hold at least gs->sprite_count entries.
- *   Returns the number of sprites written to sorted_order. */
-int sprites_sort(const GameState *gs, int *sorted_order);
+/**  Collect visible sprites from the map grid and sort back-to-front.
+ *   Scans map->sprites[][] for non-empty cells, builds Sprite instances
+ *   at cell centres, and sorts by distance to the player (farthest first).
+ *   out[] must have space for at least (map->w * map->h) entries.
+ *   Returns the number of sprites written to out[]. */
+int sprites_collect_and_sort(const Map *map, const Player *player,
+                             Sprite *out, int max_out);
 
 #endif /* SPRITES_H */

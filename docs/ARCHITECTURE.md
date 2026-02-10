@@ -40,7 +40,7 @@ graph TB
 
     subgraph "External"
         SDL3["SDL3 Library"]
-        MAP["map.txt + map_info.txt"]
+        MAP["map.txt + map_info.txt + map_sprites.txt"]
         BMP["assets/textures.bmp<br/>assets/sprites.bmp"]
     end
 
@@ -98,7 +98,7 @@ Responsibilities:
 **Design pattern: File Parser Module** — separated from the core engine to allow test-time substitution with a fake implementation.
 
 Responsibilities:
-- **Map loading** (`map_load`) — parse two ASCII map files (tiles plane + info plane) into a standalone `Map` struct and initialise the `Player` position, direction, and camera
+- **Map loading** (`map_load`) — parse three ASCII map files (tiles plane + info plane + sprites plane) into a standalone `Map` struct and initialise the `Player` position, direction, and camera
 
 For unit tests, `map_manager_fake.c` provides an alternative `map_load` implementation that returns a hardcoded map with all tile types and info entries, removing filesystem dependencies from the core test suite.
 
@@ -136,15 +136,16 @@ The texture manager also handles sprite textures via `tm_init_sprites()` and `tm
 **Design pattern: Pure Computation Module** — like `raycaster.c`, this file has zero platform dependencies.
 
 Responsibilities:
-- Sort sprites back-to-front by squared distance to the player (insertion sort, stable for ≤64 sprites)
-- Provide `sprites_sort()` which fills an index array used by the renderer to draw sprites in the correct order
+- Collect visible sprites from the map's sprite plane grid (`Map.sprites[][]`)
+- Sort them back-to-front by squared distance to the player (insertion sort)
+- Provide `sprites_collect_and_sort()` which scans the grid, builds `Sprite` instances at cell centres, and returns a sorted array used by the renderer
 
 The sprite rendering itself lives in `platform_sdl.c` (since it needs framebuffer access). The rendering pass occurs **after** walls are drawn and uses:
 - **Billboarding**: sprites are rendered as flat planes perpendicular to the view vector using the inverse camera matrix
 - **Z-buffering**: a 1D depth buffer (`GameState.z_buffer[]`) filled during raycasting prevents sprites from showing through walls
 - **Colour-key transparency**: pixels matching `SPRITE_ALPHA_KEY` are skipped
 
-Sprite data (`Sprite` structs) is stored in `GameState` and is decoupled from the wall/map system.
+Sprite placement is defined in the map's sprites plane (`Map.sprites[][]`), loaded from `map_sprites.txt`. At render time, the grid is scanned each frame to collect and sort active sprites.
 
 ### Layer 3: Orchestrator (`main.c`)
 
@@ -201,10 +202,11 @@ sequenceDiagram
     Main->>Core: rc_cast(&gs, &map)
     Note over Core: For each of 800 screen columns:<br/>Cast ray via DDA, store distance in gs.hits[]
 
-    Main->>Plat: platform_render(&gs)
+    Main->>Plat: platform_render(&gs, &map)
     Note over Plat: Clear screen (ceiling color)
     Note over Plat: Draw floor rectangle (bottom half)
     Note over Plat: For each column: draw wall strip from hits[]
+    Note over Plat: Collect sprites from map grid, sort, and render
     Note over Plat: Draw debug overlay (player coords)
     Note over Plat: SDL_RenderPresent
 ```
@@ -335,7 +337,7 @@ Platform state (`SDL_Window*`, `SDL_Renderer*`) is stored in **file-scoped stati
 
 ## Map System
 
-Maps consist of two ASCII text files parsed at startup — one for geometry (tiles) and one for metadata (info). Both files share the same grid dimensions.
+Maps consist of three ASCII text files parsed at startup — one for geometry (tiles), one for metadata (info), and one for sprite placement (sprites). All files share the same grid dimensions.
 
 ### Tiles Plane (`map.txt`)
 
@@ -395,6 +397,39 @@ The player spawns at the **center** of the spawn cell (`col + 0.5, row + 0.5`) f
 
 When the player reaches the centre of an `INFO_TRIGGER_ENDGAME` cell, `game_over` is set to `true` and the game displays a congratulations screen.
 
+### Sprites Plane (`map_sprites.txt`)
+
+Places sprite objects on the map grid. Each non-empty cell spawns a billboarded sprite at the centre of that cell during rendering:
+
+```
+................
+.....1..........
+................
+................
+................
+................
+................
+..........2.....
+................
+................
+................
+................
+..3.............
+................
+................
+................
+................
+```
+
+| Character | Meaning | Grid Value |
+|---|---|---|
+| `.` or ` ` | No sprite | `0` (`SPRITE_EMPTY`) |
+| `1`–`9` | Sprite (texture N-1) | `N` |
+
+Grid values store `texture_id + 1`, so a grid value of `1` means texture index 0. At render time, `sprites_collect_and_sort()` scans the grid, builds `Sprite` instances at cell centres (`col + 0.5, row + 0.5`), and sorts them back-to-front by distance to the player.
+
+The sprites file is optional — if not provided, the sprites plane stays empty (all `SPRITE_EMPTY`).
+
 ### Constraints
 
 - Maximum size: 64×64 (`MAP_MAX_W` / `MAP_MAX_H`)
@@ -411,14 +446,13 @@ classDiagram
         Player player
         RayHit hits[800]
         float z_buffer[800]
-        Sprite sprites[64]
-        int sprite_count
         bool game_over
     }
 
     class Map {
         uint16 tiles[64][64]
         uint16 info[64][64]
+        uint16 sprites[64][64]
         int w
         int h
     }
@@ -450,10 +484,10 @@ classDiagram
 
     GameState *-- Player
     GameState *-- RayHit
-    GameState *-- Sprite
+    Map *-- Sprite
 
     note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
-    note for Map "Standalone map data (tiles + info planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
+    note for Map "Standalone map data (tiles + info + sprites planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
     note for RayHit "Filled every frame by rc_cast().\nConsumed by platform_render().\nOne entry per screen column."
     note for Input "Written by platform layer.\nRead by core engine.\nBridge between layers."
 ```
@@ -461,7 +495,7 @@ classDiagram
 ### Ownership Model
 
 - `GameState` holds player state and the ray buffer — allocated on `main()`'s stack, passed by pointer everywhere
-- `Map` is a **standalone struct** with two planes (tiles + info) — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
+- `Map` is a **standalone struct** with three planes (tiles + info + sprites) — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
 - `Input` is the **bridge** — written by the platform layer, read by the core engine
 - `RayHit[SCREEN_W]` is the **frame buffer** — filled by `rc_cast()`, consumed by `platform_render()`
 - Platform state (window, renderer) is **private** to `platform_sdl.c` via file-scoped statics
