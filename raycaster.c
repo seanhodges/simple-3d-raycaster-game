@@ -186,9 +186,9 @@ void rc_cast(GameState *gs, const Map *map)
             wall_x = p->x + perp * ray_dx;   /* horizontal wall: X varies along face */
         wall_x -= floorf(wall_x);            /* keep only fractional part [0.0, 1.0) */
 
-        /* Extract wall_type (texture index) from tile value.
-         * Tile encoding: 0 = floor, 1 = wall type 0, 2 = wall type 1, etc.
-         * So wall_type = tile - 1. Out-of-bounds tiles default to type 0. */
+        /* Extract tile_type (texture index) from tile value.
+         * Tile encoding: 0 = floor, 1 = tile type 0, 2 = tile type 1, etc.
+         * So tile_type = tile - 1. Out-of-bounds tiles default to type 0. */
         int tile = 0;
         if (map_x >= 0 && map_y >= 0 && map_x < map->w && map_y < map->h)
             tile = map->tiles[map_y][map_x];
@@ -197,7 +197,7 @@ void rc_cast(GameState *gs, const Map *map)
         gs->hits[x].wall_dist = perp;
         gs->hits[x].wall_x    = wall_x;
         gs->hits[x].side      = side;
-        gs->hits[x].wall_type = (tile > 0) ? tile - 1 : 0;
+        gs->hits[x].tile_type = (tile > 0) ? tile - 1 : 0;
 
         /* Store perpendicular distance in z-buffer for sprite clipping */
         gs->z_buffer[x] = perp;

@@ -29,10 +29,10 @@ bool tm_init_sprites(const char *atlas_path);
 void tm_shutdown(void);
 
 /**  Sample a pixel from the wall atlas.
- *   wall_type: 0 .. TEX_COUNT-1
+ *   tile_type: 0 .. TEX_COUNT-1
  *   tex_x, tex_y: 0 .. TEX_SIZE-1
  *   Returns colour in RGBA8888 format. */
-unsigned int tm_get_tile_pixel(uint16_t wall_type, int tex_x, int tex_y);
+unsigned int tm_get_tile_pixel(uint16_t tile_type, int tex_x, int tex_y);
 
 /**  Sample a pixel from the sprite atlas.
  *   tex_id: 0 .. SPRITE_TEX_COUNT-1

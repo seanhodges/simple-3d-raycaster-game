@@ -20,7 +20,7 @@ typedef struct RayHit {
     float    wall_dist;     /* perpendicular distance to wall          */
     float    wall_x;        /* where on the wall face the ray hit 0-1  */
     int      side;          /* 0 = x-side hit, 1 = y-side hit          */
-    uint16_t wall_type;     /* texture index (0 .. TEX_COUNT-1)        */
+    uint16_t tile_type;     /* texture index (0 .. TEX_COUNT-1)        */
 } RayHit;
 
 /* ── Player state ──────────────────────────────────────────────────── */

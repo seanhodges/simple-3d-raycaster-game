@@ -116,18 +116,18 @@ void tm_shutdown(void)
     sprite_atlas_loaded = false;
 }
 
-unsigned int tm_get_tile_pixel(uint16_t wall_type, int tex_x, int tex_y)
+unsigned int tm_get_tile_pixel(uint16_t tile_type, int tex_x, int tex_y)
 {
     if (!tile_atlas_loaded) return COL_WALL;
 
     /* Clamp inputs */
-    if (wall_type >= TEX_COUNT) wall_type = TEX_COUNT - 1;
+    if (tile_type >= TEX_COUNT) tile_type = TEX_COUNT - 1;
     if (tex_x < 0)             tex_x = 0;
     if (tex_x >= TEX_SIZE)     tex_x = TEX_SIZE - 1;
     if (tex_y < 0)             tex_y = 0;
     if (tex_y >= TEX_SIZE)     tex_y = TEX_SIZE - 1;
 
-    return pixels[wall_type * TEX_SIZE * TEX_SIZE + tex_y * TEX_SIZE + tex_x];
+    return pixels[tile_type * TEX_SIZE * TEX_SIZE + tex_y * TEX_SIZE + tex_x];
 }
 
 unsigned int tm_get_sprite_pixel(uint16_t tex_id, int tex_x, int tex_y)

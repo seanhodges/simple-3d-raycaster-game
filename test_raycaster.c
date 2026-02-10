@@ -111,7 +111,7 @@ static void test_fake_map_dimensions(void)
 
 static void test_fake_map_wall_x_hash(void)
 {
-    /* X and # both produce tile value 1 (wall_type 0) */
+    /* X and # both produce tile value 1 (tile_type 0) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -128,7 +128,7 @@ static void test_fake_map_wall_x_hash(void)
 
 static void test_fake_map_digit_walls(void)
 {
-    /* Digit N produces tile value N+1 (wall_type N) */
+    /* Digit N produces tile value N+1 (tile_type N) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -250,7 +250,7 @@ static void test_fake_map_walls_are_walls(void)
     }
 }
 
-static void test_fake_map_all_wall_types_present(void)
+static void test_fake_map_all_tile_types_present(void)
 {
     /* Verify wall types 0–9 are all present somewhere in the map */
     Map map;
@@ -264,9 +264,9 @@ static void test_fake_map_all_wall_types_present(void)
         for (int c = 0; c < map.w; c++) {
             uint16_t tile = map.tiles[r][c];
             if (tile > 0) {
-                uint16_t wall_type = tile - 1;
-                if (wall_type < TEX_COUNT)
-                    found[wall_type] = true;
+                uint16_t tile_type = tile - 1;
+                if (tile_type < TEX_COUNT)
+                    found[tile_type] = true;
             }
         }
     }
@@ -566,7 +566,7 @@ static void test_cast_all_columns_filled(void)
     /* Every column should have a positive wall distance */
     for (int x = 0; x < SCREEN_W; x++) {
         assert(gs.hits[x].wall_dist > 0.0f);
-        assert(gs.hits[x].wall_type == 0);   /* init_box_map uses tile=1 → type 0 */
+        assert(gs.hits[x].tile_type == 0);   /* init_box_map uses tile=1 → type 0 */
     }
 }
 
@@ -641,9 +641,9 @@ static void test_cast_wall_x_centre(void)
     ASSERT_NEAR(gs.hits[mid].wall_x, 0.5f, 0.05f);
 }
 
-static void test_cast_digit_wall_type(void)
+static void test_cast_digit_tile_type(void)
 {
-    /* Build a map where the east wall is tile value 6 (wall_type 5) */
+    /* Build a map where the east wall is tile value 6 (tile_type 5) */
     Map map;
     GameState gs;
     memset(&map, 0, sizeof(map));
@@ -678,7 +678,7 @@ static void test_cast_digit_wall_type(void)
 
     /* Centre column should hit the east wall (type 5) */
     int mid = SCREEN_W / 2;
-    assert(gs.hits[mid].wall_type == 5);
+    assert(gs.hits[mid].tile_type == 5);
 }
 
 static void test_cast_side_shading(void)
@@ -878,7 +878,7 @@ int main(void)
     RUN_TEST(test_fake_map_player_direction);
     RUN_TEST(test_fake_map_camera_plane);
     RUN_TEST(test_fake_map_walls_are_walls);
-    RUN_TEST(test_fake_map_all_wall_types_present);
+    RUN_TEST(test_fake_map_all_tile_types_present);
 
     printf("\n── rc_update ───────────────────────────────────────────\n");
     RUN_TEST(test_update_no_input);
@@ -902,7 +902,7 @@ int main(void)
     RUN_TEST(test_cast_edge_distances_longer);
     RUN_TEST(test_cast_wall_x_range);
     RUN_TEST(test_cast_wall_x_centre);
-    RUN_TEST(test_cast_digit_wall_type);
+    RUN_TEST(test_cast_digit_tile_type);
     RUN_TEST(test_cast_side_shading);
 
     printf("\n── Integration ─────────────────────────────────────────\n");

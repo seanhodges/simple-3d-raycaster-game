@@ -124,7 +124,7 @@ The platform layer **reads from** the core but never writes to it, except throug
 
 Responsibilities:
 - Load a horizontal texture atlas (BMP) containing `TEX_COUNT` (10) square textures of `TEX_SIZE` (64) pixels each
-- Provide `tm_get_tile_pixel(wall_type, tex_x, tex_y)` for colour sampling
+- Provide `tm_get_tile_pixel(tile_type, tex_x, tex_y)` for colour sampling
 - Fall back to a solid wall colour (`COL_WALL`) if the BMP file is missing
 
 The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_tile_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
@@ -246,7 +246,7 @@ graph TD
     F --> G
     G -->|No| D
     G -->|Yes| H["Calculate perpendicular distance<br/>(avoids fish-eye)"]
-    H --> I["Store in hits[x]:<br/>distance, side, wall_type"]
+    H --> I["Store in hits[x]:<br/>distance, side, tile_type"]
 ```
 
 ### Why Perpendicular Distance?
@@ -318,7 +318,7 @@ The renderer uses a streaming framebuffer texture for pixel-level textured wall 
    - Calculate strip height from `hits[x].wall_dist`
    - Derive `tex_x` from `hits[x].wall_x` (fractional hit position on the wall face)
    - For each pixel in the strip, compute `tex_y` from the vertical position
-   - Sample the colour from `tm_get_pixel(wall_type, tex_x, tex_y)`
+   - Sample the colour from `tm_get_pixel(tile_type, tex_x, tex_y)`
    - Apply y-side darkening for depth cue (halve RGB components)
 4. **Unlock** and blit the framebuffer to the renderer
 5. **Debug overlay** — player coordinates rendered as text (top-left corner)
@@ -360,7 +360,7 @@ XXXX  XXXX  XXXX
 | `0`–`9` | Wall (texture N) | `N + 1` |
 | ` ` (space) | Empty floor | `0` (`TILE_FLOOR`) |
 
-Tile values encode wall presence and texture type: `0` = floor (walkable), `> 0` = wall with `wall_type = tile - 1`. The `is_wall()` function simply checks `tile > TILE_FLOOR`.
+Tile values encode wall presence and texture type: `0` = floor (walkable), `> 0` = wall with `tile_type = tile - 1`. The `is_wall()` function simply checks `tile > TILE_FLOOR`.
 
 ### Info Plane (`map_info.txt`)
 
@@ -433,7 +433,7 @@ classDiagram
         float wall_dist
         float wall_x
         int side
-        uint16 wall_type
+        uint16 tile_type
     }
 
     class Input {

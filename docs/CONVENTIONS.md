@@ -37,7 +37,7 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 
 - **Descriptive names** for domain concepts: `wall_dist`, `draw_start`, `line_h`, `cam_x`
 - **Short names** only for well-understood math: `c`/`s` for cos/sin, `dx`/`dy` for deltas, `p` for player pointer, `m` for map pointer
-- **Struct members** use `snake_case`: `dir_x`, `plane_y`, `wall_type`
+- **Struct members** use `snake_case`: `dir_x`, `plane_y`, `tile_type`
 
 ### Constants
 

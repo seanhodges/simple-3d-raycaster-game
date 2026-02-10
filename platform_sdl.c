@@ -212,7 +212,7 @@ void platform_render(const GameState *gs)
         int tex_x = (int)(gs->hits[x].wall_x * TEX_SIZE);
         if (tex_x >= TEX_SIZE) tex_x = TEX_SIZE - 1;
 
-        uint16_t wt = gs->hits[x].wall_type;
+        uint16_t wt = gs->hits[x].tile_type;
         int side = gs->hits[x].side;
 
         /* Clamp visible range to screen */
