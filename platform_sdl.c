@@ -14,6 +14,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define WINDOW_TITLE "Simple 3D Raycaster"
+
 /* ── Internal state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
 static SDL_Renderer *renderer = NULL;
@@ -21,14 +23,14 @@ static SDL_Texture  *fb_tex   = NULL;  /* streaming framebuffer       */
 
 /* ── Public API ────────────────────────────────────────────────────── */
 
-bool platform_init(const char *title)
+bool platform_init(void)
 {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "platform_init: SDL_Init failed: %s\n", SDL_GetError());
         return false;
     }
 
-    window = SDL_CreateWindow(title, SCREEN_W, SCREEN_H, 0);
+    window = SDL_CreateWindow(WINDOW_TITLE, SCREEN_W, SCREEN_H, 0);
     if (!window) {
         fprintf(stderr, "platform_init: SDL_CreateWindow failed: %s\n", SDL_GetError());
         return false;

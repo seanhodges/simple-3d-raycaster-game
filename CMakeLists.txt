@@ -57,12 +57,6 @@ if(SDL3_LINK_TARGET)
     # Copy runtime assets next to the executable so it can be run from
     # the build directory without extra setup.
     add_custom_command(TARGET raycaster POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/map.txt   $<TARGET_FILE_DIR:raycaster>/map.txt
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/map_info.txt $<TARGET_FILE_DIR:raycaster>/map_info.txt
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/map_sprites.txt $<TARGET_FILE_DIR:raycaster>/map_sprites.txt
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/assets    $<TARGET_FILE_DIR:raycaster>/assets
         COMMENT "Copying game assets to build directory"
@@ -91,14 +85,11 @@ add_executable(test_map_manager_ascii
 )
 target_link_libraries(test_map_manager_ascii PRIVATE m)
 
-# This test needs map.txt, map_info.txt, and map_sprites.txt in the working directory
+# This test needs map assets present 
 add_custom_command(TARGET test_map_manager_ascii POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/map.txt $<TARGET_FILE_DIR:test_map_manager_ascii>/map.txt
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/map_info.txt $<TARGET_FILE_DIR:test_map_manager_ascii>/map_info.txt
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/map_sprites.txt $<TARGET_FILE_DIR:test_map_manager_ascii>/map_sprites.txt
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets    $<TARGET_FILE_DIR:test_map_manager_ascii>/assets
+    COMMENT "Copying game assets to test build directory"
 )
 add_test(
     NAME test_map_manager_ascii

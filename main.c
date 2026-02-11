@@ -13,16 +13,13 @@
 #define DT         (1.0f / TICK_RATE)
 #define MAX_FRAME  0.25f         /* max frame time before clamping (s)*/
 
-int main(int argc, char *argv[])
+int main()
 {
-    (void)argc; (void)argv;
-
-    const char *tiles_path   = "map.txt";
-    const char *info_path    = "map_info.txt";
-    const char *sprites_path = "map_sprites.txt";
-    if (argc > 1) tiles_path   = argv[1];
-    if (argc > 2) info_path    = argv[2];
-    if (argc > 3) sprites_path = argv[3];
+    const char *map_tiles_path       = "assets/map_tiles.txt";
+    const char *map_sprites_path     = "assets/map_sprites.txt";
+    const char *map_info_path        = "assets/map_info.txt";
+    const char *texture_tiles_path   = "assets/texture_tiles.bmp";
+    const char *texture_sprites_path = "assets/texture_sprites.bmp";
 
     /* Initialise */
     Map map;
@@ -31,21 +28,22 @@ int main(int argc, char *argv[])
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&map, &gs.player, tiles_path, info_path, sprites_path)) {
+    if (!map_load(&map, &gs.player, map_tiles_path, map_info_path, map_sprites_path)) {
         fprintf(stderr, "main: failed to load map\n");
         return 1;
     }
 
-    if (!platform_init("Raycaster – SDL3")) {
+    /* First load the frontend */
+    if (!platform_init()) {
         return 1;
     }
 
-    if (!tm_init_tiles("assets/textures.bmp")) {
+    if (!tm_init_tiles(texture_tiles_path)) {
         platform_shutdown();
         return 1;
     }
 
-    if (!tm_init_sprites("assets/sprites.bmp")) {
+    if (!tm_init_sprites(texture_sprites_path)) {
         tm_shutdown();
         platform_shutdown();
         return 1;

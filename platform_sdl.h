@@ -8,7 +8,7 @@
 #define COL_FLOOR      0x66666666   /* floor (dark grey)                 */
 #define COL_WALL_SHADE 0x000068FF   /* shading reference (darker blue)   */
 
-bool platform_init(const char *title);
+bool platform_init(void);
 void platform_shutdown(void);
 bool platform_poll_input(Input *in);
 void platform_render(const GameState *gs);

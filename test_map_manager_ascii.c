@@ -1,10 +1,9 @@
 /*  test_map_manager_ascii.c  –  tests for the real map file loader
  *  ──────────────────────────────────────────────────────────────────
  *  Links against raycaster.o and map_manager_ascii.o — no SDL dependency.
- *  Tests that map_load() can successfully read map.txt and map_info.txt
+ *  Tests that map_load() can successfully read map files
  *  without making assumptions about the map's specific contents.
- *  Run from the project root (needs map.txt and map_info.txt in the
- *  working directory).
+ *  Note: needs map asset files in the working directory.
  *  Build:  make test
  *  Run:    ./test_map_manager_ascii
  */
@@ -53,7 +52,7 @@ static void test_load_map_succeeds(void)
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
 
-    bool ok = map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    bool ok = map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
     assert(ok);
 }
 
@@ -64,7 +63,7 @@ static void test_load_map_has_dimensions(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     assert(map.w > 0);
     assert(map.h > 0);
@@ -79,7 +78,7 @@ static void test_load_map_has_player(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     assert(player.x > 0.0f);
     assert(player.y > 0.0f);
@@ -94,7 +93,7 @@ static void test_load_map_player_at_cell_centre(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     float frac_x = player.x - (int)player.x;
     float frac_y = player.y - (int)player.y;
@@ -109,7 +108,7 @@ static void test_load_map_player_on_floor(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     int px = (int)player.x;
     int py = (int)player.y;
@@ -123,7 +122,7 @@ static void test_load_map_player_direction(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     ASSERT_NEAR(player.dir_x, 1.0f, 0.01f);
     ASSERT_NEAR(player.dir_y, 0.0f, 0.01f);
@@ -140,7 +139,7 @@ static void test_load_map_camera_plane(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     float half_fov = (FOV_DEG * 0.5f) * (PI / 180.0f);
     float expected_plane = tanf(half_fov);
@@ -155,7 +154,7 @@ static void test_load_map_missing_tiles_file(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    bool ok = map_load(&map, &player, "nonexistent.txt", "map_info.txt", "map_sprites.txt");
+    bool ok = map_load(&map, &player, "nonexistent.txt", "assets/map_info.txt", "assets/map_sprites.txt");
     assert(!ok);
 }
 
@@ -165,7 +164,7 @@ static void test_load_map_missing_info_file(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    bool ok = map_load(&map, &player, "map.txt", "nonexistent.txt", "map_sprites.txt");
+    bool ok = map_load(&map, &player, "assets/map_tiles.txt", "nonexistent.txt", "assets/map_sprites.txt");
     assert(!ok);
 }
 
@@ -176,7 +175,7 @@ static void test_load_map_tiles_in_range(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     for (int r = 0; r < map.h; r++) {
         for (int c = 0; c < map.w; c++) {
@@ -193,7 +192,7 @@ static void test_load_map_info_has_spawn(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     bool found_spawn = false;
     for (int r = 0; r < map.h; r++) {
@@ -216,7 +215,7 @@ static void test_load_map_info_has_endgame(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     bool found_endgame = false;
     for (int r = 0; r < map.h; r++) {
@@ -238,7 +237,7 @@ static void test_load_map_info_border_ignored(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     /* Top row: all cells should be INFO_EMPTY (the X border) */
     for (int c = 0; c < map.w; c++) {
@@ -262,7 +261,7 @@ static void test_load_map_info_dimensions_match_tiles(void)
     Player player;
     memset(&map, 0, sizeof(map));
     memset(&player, 0, sizeof(player));
-    map_load(&map, &player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     /* Dimensions are set by the tiles pass — verify both planes are populated.
      * Check that the info plane has content at the map boundaries. */
@@ -288,7 +287,7 @@ static void test_load_map_game_state_unaffected(void)
     Map map;
     memset(&gs, 0, sizeof(gs));
     memset(&map, 0, sizeof(map));
-    map_load(&map, &gs.player, "map.txt", "map_info.txt", "map_sprites.txt");
+    map_load(&map, &gs.player, "assets/map_tiles.txt", "assets/map_info.txt", "assets/map_sprites.txt");
 
     assert(!gs.game_over);
 }

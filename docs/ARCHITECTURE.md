@@ -40,7 +40,7 @@ graph TB
 
     subgraph "External"
         SDL3["SDL3 Library"]
-        MAP["map.txt + map_info.txt + map_sprites.txt"]
+        MAP["assets/map_tiles.txt<br/>assets/map_info.txt<br/>assets/map_sprites.txt"]
         BMP["assets/textures.bmp<br/>assets/sprites.bmp"]
     end
 
@@ -341,7 +341,7 @@ Platform state (`SDL_Window*`, `SDL_Renderer*`) is stored in **file-scoped stati
 
 Maps consist of three ASCII text files parsed at startup — one for geometry (tiles), one for metadata (info), and one for sprite placement (sprites). All files share the same grid dimensions.
 
-### Tiles Plane (`map.txt`)
+### Tiles Plane (`map_tiles.txt`)
 
 Defines wall geometry and floor layout:
 
@@ -393,7 +393,7 @@ XXXXXXXXXXXXXXXX
 | `<` | Player spawn, facing west | `4` (`INFO_SPAWN_PLAYER_W`) |
 | `F` or `f` | Endgame trigger | `5` (`INFO_TRIGGER_ENDGAME`) |
 
-Any unrecognised character (including the `X` border) is treated as `INFO_EMPTY`. The `X` border is a visual convention that mirrors the wall border in `map.txt`, making the two files easy to compare side-by-side.
+Any unrecognised character (including the `X` border) is treated as `INFO_EMPTY`. The `X` border is a visual convention that mirrors the wall border in `map_tiles.txt`, making the two files easy to compare side-by-side.
 
 The player spawns at the **center** of the spawn cell (`col + 0.5, row + 0.5`) facing the direction indicated by the arrow character. The camera plane is derived from `FOV_DEG`, perpendicular to the facing direction.
 

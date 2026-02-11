@@ -295,7 +295,7 @@ ctest --test-dir build    # Run all tests
 
 Tests live in two files:
 - `test_raycaster.c` — links against `raycaster.o` and `map_manager_fake.o` (a hardcoded test map). Filesystem-independent.
-- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `map.txt`, `map_info.txt`, and `map_sprites.txt` in the working directory (copied automatically by the build).
+- `test_map_manager_ascii.c` — links against `raycaster.o` and `map_manager_ascii.o` (the real file loader). Requires `assets/map_tiles.txt`, `assets/map_info.txt`, and `assets/map_sprites.txt` in the working directory (copied automatically by the build).
 
 Both have no SDL dependency.
 
@@ -318,7 +318,7 @@ static void init_box_map(Map *map, GameState *gs, int w, int h,
                          float dir_x, float dir_y)
 ```
 
-This avoids depending on `map.txt` for most tests. Only `test_load_map_*` and `test_load_then_cast` use the real map file.
+This avoids depending on real assets for most tests. Only `test_load_map_*` and `test_load_then_cast` use the real map files.
 
 ### Writing New Tests
 
@@ -460,7 +460,7 @@ This allows files to forward-declare `struct Player;` without including the full
 
 ### 7. Info Plane Border Convention
 
-The `map_info.txt` file uses an `X` border around its grid to visually frame the content and mirror the wall border in `map.txt`. This makes the two files easy to compare side-by-side in an editor.
+The `map_info.txt` file uses an `X` border around its grid to visually frame the content and mirror the wall border in `map_tiles.txt`. This makes the two files easy to compare side-by-side in an editor.
 
 ```
 XXXXXXXXXXXXXXXX
@@ -471,4 +471,4 @@ X   >          X
 XXXXXXXXXXXXXXXX
 ```
 
-The parser treats any unrecognised character as `INFO_EMPTY`, so the `X` border is purely decorative and has no effect on gameplay. When editing `map_info.txt`, maintain the `X` border at all edges and keep dimensions aligned with `map.txt`.
+The parser treats any unrecognised character as `INFO_EMPTY`, so the `X` border is purely decorative and has no effect on gameplay. When editing `map_info.txt`, maintain the `X` border at all edges and keep dimensions aligned with `map_tiles.txt`.
