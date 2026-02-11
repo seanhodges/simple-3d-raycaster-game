@@ -28,7 +28,7 @@ int main()
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&map, &gs.player, map_tiles_path, map_info_path, map_sprites_path)) {
+    if (!map_load(&map, &gs.player, map_tiles_path, map_sprites_path, map_info_path)) {
         fprintf(stderr, "main: failed to load map\n");
         return 1;
     }
