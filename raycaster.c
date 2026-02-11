@@ -3,10 +3,10 @@
  *  No SDL headers.  Pure C + math.
  */
 #include "raycaster.h"
-#include "sprites.h"
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MOVE_SPD   3.0f    /* map-units / second                */
@@ -82,6 +82,27 @@ void rc_update(GameState *gs, const Map *map, const Input *in, float dt)
         if (ex * ex + ey * ey <= COL_MARGIN * COL_MARGIN)
             gs->game_over = true;
     }
+}
+
+/* ── Sprite sorting ────────────────────────────────────────────────── */
+
+/** qsort comparator: sort sprites by perp_dist descending (farthest first)
+ *  so the painter's algorithm draws distant sprites before near ones. */
+static int sprite_cmp_desc(const void *a, const void *b)
+{
+    float da = ((const Sprite *)a)->perp_dist;
+    float db = ((const Sprite *)b)->perp_dist;
+    if (da > db) return -1;
+    if (da < db) return  1;
+    return 0;
+}
+
+/** Sort visible sprites back-to-front using qsort for O(N log N). */
+static void sort_visible_sprites(GameState *gs)
+{
+    if (gs->visible_sprite_count > 1)
+        qsort(gs->visible_sprites, (size_t)gs->visible_sprite_count,
+              sizeof(Sprite), sprite_cmp_desc);
 }
 
 /* ── DDA Raycasting ────────────────────────────────────────────────── */
@@ -250,5 +271,5 @@ void rc_cast(GameState *gs, const Map *map)
     }
 
     /* Sort visible sprites back-to-front for correct painter's order */
-    sprites_sort(gs->visible_sprites, gs->visible_sprite_count);
+    sort_visible_sprites(gs);
 }

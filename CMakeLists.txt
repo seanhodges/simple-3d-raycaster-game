@@ -46,7 +46,6 @@ if(SDL3_LINK_TARGET)
     add_executable(raycaster
         main.c
         raycaster.c
-        sprites.c
         map_manager_ascii.c
         frontend_sdl.c
         textures_sdl.c
@@ -70,7 +69,6 @@ enable_testing()
 add_executable(test_raycaster
     test_raycaster.c
     raycaster.c
-    sprites.c
     map_manager_fake.c
 )
 target_link_libraries(test_raycaster PRIVATE m)
@@ -80,7 +78,6 @@ add_test(NAME test_raycaster COMMAND test_raycaster)
 add_executable(test_map_manager_ascii
     test_map_manager_ascii.c
     raycaster.c
-    sprites.c
     map_manager_ascii.c
 )
 target_link_libraries(test_map_manager_ascii PRIVATE m)

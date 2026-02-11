@@ -29,8 +29,7 @@ graph TB
     end
 
     subgraph "Layer 1 — Core Engine"
-        RC["raycaster.c / .h<br/>Map, Player, DDA, Physics"]
-        SPR["sprites.c / .h<br/>Sprite sorting"]
+        RC["raycaster.c / .h<br/>Map, Player, DDA, Physics,<br/>Sprite sorting"]
     end
 
     subgraph "Layer 2 — Platform"
@@ -45,12 +44,10 @@ graph TB
     end
 
     MAIN --> RC
-    MAIN --> SPR
     MAIN --> PLAT
     MAIN --> TEX
     PLAT --> SDL3
     PLAT --> TEX
-    PLAT --> SPR
     TEX --> SDL3
     TEX --> BMP
     subgraph "Layer 1b — Map Loader"
@@ -131,15 +128,9 @@ The texture manager uses SDL for BMP loading but stores pixel data in a flat arr
 
 The texture manager also handles sprite textures via `tm_init_sprites()` and `tm_get_sprite_pixel()`. Sprite textures use colour-key transparency: pixels matching `#980088` (magenta, `SPRITE_ALPHA_KEY`) are treated as transparent and skipped during rendering.
 
-### Sprite System (`sprites.c` / `sprites.h`)
+### Sprite Collection & Sorting (inline in `raycaster.c`)
 
-**Design pattern: Pure Computation Module** — like `raycaster.c`, this file has zero platform dependencies.
-
-Responsibilities:
-- Sort visible sprites back-to-front by perpendicular distance (insertion sort)
-- Provide `sprites_sort()` which operates in-place on a pre-collected `Sprite` array
-
-Sprite collection happens during DDA traversal in `rc_cast()`. As each ray steps through floor cells, it checks the map's sprite plane for non-empty cells and adds unseen sprites (with their perpendicular distance to the camera plane) to `GameState.visible_sprites[]`. A per-frame visited bitmap prevents duplicates across the 800 rays. After all rays complete, `sprites_sort()` orders them back-to-front.
+Sprite collection happens during DDA traversal in `rc_cast()`. As each ray steps through floor cells, it checks the map's sprite plane for non-empty cells and appends unseen sprites (with their perpendicular distance to the camera plane) to `GameState.visible_sprites[]` in O(1). A per-frame visited bitmap prevents duplicates across the 800 rays. After all rays complete, `sort_visible_sprites()` orders them back-to-front using `qsort` for O(N log N) performance.
 
 The sprite rendering itself lives in `platform_sdl.c` (since it needs framebuffer access). The rendering pass occurs **after** walls are drawn and uses:
 - **Billboarding**: sprites are rendered as flat planes perpendicular to the view vector using the inverse camera matrix

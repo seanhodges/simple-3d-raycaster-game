@@ -28,7 +28,6 @@ Functions are namespaced by their layer using prefixes. This is the C equivalent
 | `map_` | Map file loader | `map_load` |
 | `platform_` | SDL3 platform abstraction | `platform_init`, `platform_shutdown`, `platform_poll_input`, `platform_render` |
 | `tm_` | Texture manager | `tm_init_tiles`, `tm_init_sprites`, `tm_shutdown`, `tm_get_tile_pixel`, `tm_get_sprite_pixel` |
-| `sprites_` | Sprite system | `sprites_sort` |
 | *(none)* | `main()` and static helpers | `main`, `is_wall` (static in raycaster.c) |
 
 **Rule:** Every public function must carry its layer prefix. Static (file-private) helper functions do not need a prefix.
