@@ -102,14 +102,55 @@ git mv platform_sdl.c frontend_sdl.c
 ```
 
 #### 2. `frontend.h` (was `platform_sdl.h`)
-- Update header guard: `PLATFORM_SDL_H` → `FRONTEND_H`
-- Update all function declarations with `frontend_` prefix
-- Keep file-level comment describing it as the abstract frontend interface
+
+**Header guards (lines 1, 2, 25):**
+```c
+// Before:
+#ifndef PLATFORM_SDL_H
+#define PLATFORM_SDL_H
+...
+#endif /* PLATFORM_SDL_H */
+
+// After:
+#ifndef FRONTEND_H
+#define FRONTEND_H
+...
+#endif /* FRONTEND_H */
+```
+
+**File-level comments:**
+- Update any references to "platform" in comments to "frontend"
+- Ensure comments describe this as the abstract frontend interface
+- No SDL-specific details should appear in comments (those belong in frontend_sdl.c)
+
+**Function declarations:**
+- Update all function declarations with `frontend_` prefix (7 functions total)
+- Update any comment documentation above functions that mentions "platform"
 
 #### 3. `frontend_sdl.c` (was `platform_sdl.c`)
-- Update `#include "platform_sdl.h"` → `#include "frontend.h"`
-- Update all function definitions with `frontend_` prefix
-- Update file header comment to mention "SDL3 frontend implementation"
+
+**Include directive (line 7):**
+```c
+// Before:
+#include "platform_sdl.h"
+
+// After:
+#include "frontend.h"
+```
+
+**File header comment (line 1):**
+```c
+// Before:
+/*  platform_sdl.c  –  SDL3 front-end / renderer
+
+// After:
+/*  frontend_sdl.c  –  SDL3 frontend / renderer
+```
+
+**Function definitions:**
+- Update all function definitions with `frontend_` prefix (7 functions)
+- Update any comments within functions that reference "platform"
+- Check error messages: update `"platform_init:"` → `"frontend_init:"` etc.
 
 #### 4. `main.c`
 - Update `#include "platform_sdl.h"` → `#include "frontend.h"`
@@ -122,6 +163,27 @@ git mv platform_sdl.c frontend_sdl.c
 - `docs/ARCHITECTURE.md` — Update diagrams, section headers, and text
 - `docs/CONVENTIONS.md` — Update function prefix table and examples
 - `README.md` — Check for any references to platform layer
+
+### Header Guard and Comment Checklist
+
+Ensure all references to "platform" are updated:
+
+**frontend.h:**
+- [ ] Header guard opening: `#ifndef FRONTEND_H`
+- [ ] Header guard define: `#define FRONTEND_H`
+- [ ] Header guard closing: `#endif /* FRONTEND_H */`
+- [ ] File-level comments updated (no "platform" references)
+- [ ] Function declaration comments updated
+
+**frontend_sdl.c:**
+- [ ] File header comment updated (platform_sdl.c → frontend_sdl.c)
+- [ ] Include directive updated: `#include "frontend.h"`
+- [ ] Error messages updated (platform_init → frontend_init, etc.)
+- [ ] Internal comments checked for "platform" references
+
+**Other files:**
+- [ ] main.c include and comments
+- [ ] CMakeLists.txt comments (if any)
 
 ### Testing
 - Rebuild project: `cmake --build build --clean-first`
