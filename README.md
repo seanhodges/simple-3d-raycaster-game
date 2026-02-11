@@ -22,8 +22,9 @@ cmake -B build
 cmake --build build
 
 # Run
-./build/raycaster              # uses map.txt (copied to build dir automatically)
-./build/raycaster map.txt      # load specific map file
+cd build
+./raycaster                     # uses map.txt (copied to build dir automatically)
+./raycaster map.txt             # load specific map file
 
 # Run tests
 ctest --test-dir build
