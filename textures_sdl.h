@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* ── Wall texture constants ──────────────────────────────────────── */
+/* ── Tile texture constants ───────────────────────────────────────── */
 #define TEX_SIZE  64             /* width & height of one texture tile */
 #define TEX_COUNT 10             /* number of textures in the atlas    */
 

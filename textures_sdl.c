@@ -1,4 +1,4 @@
-/*  textures_sdl.c  –  texture atlas manager (walls + sprites)
+/*  textures_sdl.c  –  texture atlas manager (tiles + sprites)
  *  ────────────────────────────────────────────────────────
  *  Loads horizontal strips of square textures from BMP files.
  *  Falls back to solid colours if files are missing.
@@ -14,7 +14,7 @@
 
 static unsigned int pixels[TEX_COUNT * TEX_SIZE * TEX_SIZE];
 static unsigned int sprite_pixels[SPRITE_TEX_COUNT * TEX_SIZE * TEX_SIZE];
-static bool tile_atlas_loaded   = false;  /* true only when wall BMP loaded  */
+static bool tile_atlas_loaded   = false;  /* true only when tile BMP loaded  */
 static bool sprite_atlas_loaded = false;  /* true only when sprite BMP loaded*/
 
 /* ── Solid-colour fallbacks ──────────────────────────────────────── */
@@ -87,7 +87,7 @@ bool tm_init_tiles(const char *atlas_path)
     memset(pixels, 0, sizeof(pixels));
     tile_atlas_loaded = false;
 
-    if (load_atlas(atlas_path, pixels, TEX_COUNT, "wall")) {
+    if (load_atlas(atlas_path, pixels, TEX_COUNT, "tiles")) {
         tile_atlas_loaded = true;
     } else {
         fill_solid();
