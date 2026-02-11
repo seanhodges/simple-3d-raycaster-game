@@ -1,8 +1,9 @@
-/*  map_manager_ascii.c  –  map file parser (tiles + info planes)
- *  ─────────────────────────────────────────────────────────────
- *  Loads two ASCII map files into a Map struct and sets the Player spawn.
+/*  map_manager_ascii.c  –  map file parser (tiles + info + sprites planes)
+ *  ────────────────────────────────────────────────────────────────────────
+ *  Loads ASCII map files into a Map struct and sets the Player spawn.
  *  The tiles file describes wall geometry; the info file describes metadata
- *  such as player spawn (with direction) and endgame triggers.
+ *  such as player spawn (with direction) and endgame triggers; the sprites
+ *  file places sprite objects on the map grid.
  *  No SDL headers.  Pure C + math.
  */
 #include "map_manager.h"
@@ -54,7 +55,7 @@ static void set_player_facing(Player *player, uint16_t spawn_type)
 /* ── Map loading ───────────────────────────────────────────────────── */
 
 bool map_load(Map *map, Player *player, const char *tiles_path,
-              const char *info_path)
+              const char *info_path, const char *sprites_path)
 {
     memset(map, 0, sizeof(*map));
 
@@ -137,5 +138,32 @@ bool map_load(Map *map, Player *player, const char *tiles_path,
     }
 
     set_player_facing(player, spawn_type);
+
+    /* ── Pass 3: sprites plane (optional) ────────────────────────── */
+    if (sprites_path) {
+        fp = fopen(sprites_path, "r");
+        if (!fp) {
+            fprintf(stderr, "map_load: cannot open '%s'\n", sprites_path);
+            return false;
+        }
+
+        row = 0;
+        while (fgets(line, sizeof(line), fp) && row < MAP_MAX_H) {
+            int len = strip_line(line);
+
+            for (int col = 0; col < len; col++) {
+                char c = line[col];
+                if (c >= '1' && c <= '9') {
+                    map->sprites[row][col] = (uint16_t)(c - '0');
+                    /* value N means texture_id N-1 */
+                } else {
+                    map->sprites[row][col] = SPRITE_EMPTY;
+                }
+            }
+            row++;
+        }
+        fclose(fp);
+    }
+
     return true;
 }

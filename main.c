@@ -17,10 +17,12 @@ int main(int argc, char *argv[])
 {
     (void)argc; (void)argv;
 
-    const char *tiles_path = "map.txt";
-    const char *info_path  = "map_info.txt";
-    if (argc > 1) tiles_path = argv[1];
-    if (argc > 2) info_path  = argv[2];
+    const char *tiles_path   = "map.txt";
+    const char *info_path    = "map_info.txt";
+    const char *sprites_path = "map_sprites.txt";
+    if (argc > 1) tiles_path   = argv[1];
+    if (argc > 2) info_path    = argv[2];
+    if (argc > 3) sprites_path = argv[3];
 
     /* Initialise */
     Map map;
@@ -29,7 +31,7 @@ int main(int argc, char *argv[])
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&map, &gs.player, tiles_path, info_path)) {
+    if (!map_load(&map, &gs.player, tiles_path, info_path, sprites_path)) {
         fprintf(stderr, "main: failed to load map\n");
         return 1;
     }
@@ -38,7 +40,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (!tm_init("assets/textures.bmp")) {
+    if (!tm_init_tiles("assets/textures.bmp")) {
+        platform_shutdown();
+        return 1;
+    }
+
+    if (!tm_init_sprites("assets/sprites.bmp")) {
+        tm_shutdown();
         platform_shutdown();
         return 1;
     }

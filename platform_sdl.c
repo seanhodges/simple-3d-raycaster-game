@@ -1,6 +1,7 @@
 /*  platform_sdl.c  –  SDL3 front-end / renderer
  *  ───────────────────────────────────────────────
  *  Reads the RayHit buffer from the core and draws vertical strips.
+ *  Renders billboarded sprites after walls using a 1D z-buffer.
  *  Handles window lifecycle and keyboard input.
  */
 #include "platform_sdl.h"
@@ -11,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /* ── Internal state ────────────────────────────────────────────────── */
 static SDL_Window   *window   = NULL;
@@ -89,6 +91,88 @@ static unsigned int darken(unsigned int c)
     return (unsigned int)((r >> 1) << 24 | (g >> 1) << 16 | (b >> 1) << 8 | a);
 }
 
+/* ── Sprite rendering (billboarded, z-buffered) ──────────────────── */
+
+static void render_sprites(unsigned int *fb, int fb_stride,
+                           const GameState *gs)
+{
+    const Player *p = &gs->player;
+    int n = gs->visible_sprite_count;
+    if (n <= 0) return;
+
+    /* Inverse camera matrix determinant (for transform_x computation):
+     * | plane_x  dir_x |   inv_det = 1 / (plane_x*dir_y - dir_x*plane_y)
+     * | plane_y  dir_y |
+     */
+    float inv_det = 1.0f / (p->plane_x * p->dir_y - p->dir_x * p->plane_y);
+
+    for (int i = 0; i < n; i++) {
+        const Sprite *sp = &gs->visible_sprites[i];
+        float depth = sp->perp_dist;
+
+        /* Translate sprite position relative to player */
+        float sx = sp->x - p->x;
+        float sy = sp->y - p->y;
+
+        /* Camera-space X (horizontal offset on screen) */
+        float transform_x = inv_det * (p->dir_y * sx - p->dir_x * sy);
+
+        /* Project: screen X position and sprite dimensions */
+        int sprite_screen_x = (int)((SCREEN_W / 2) *
+                              (1.0f + transform_x / depth));
+
+        int sprite_h = abs((int)(SCREEN_H / depth));
+        int sprite_w = sprite_h;  /* square sprites */
+
+        /* Vertical draw bounds */
+        int draw_start_y = -sprite_h / 2 + SCREEN_H / 2;
+        int draw_end_y   =  sprite_h / 2 + SCREEN_H / 2;
+
+        int y_start = draw_start_y < 0 ? 0 : draw_start_y;
+        int y_end   = draw_end_y >= SCREEN_H ? SCREEN_H - 1 : draw_end_y;
+
+        /* Horizontal draw bounds */
+        int draw_start_x = -sprite_w / 2 + sprite_screen_x;
+        int draw_end_x   =  sprite_w / 2 + sprite_screen_x;
+
+        /* Skip entirely if outside screen (FOV culling) */
+        if (draw_end_x < 0 || draw_start_x >= SCREEN_W) continue;
+
+        int x_start = draw_start_x < 0 ? 0 : draw_start_x;
+        int x_end   = draw_end_x >= SCREEN_W ? SCREEN_W - 1 : draw_end_x;
+
+        /* Draw sprite columns */
+        for (int x = x_start; x <= x_end; x++) {
+            /* Z-buffer test: skip if wall is closer */
+            if (depth >= gs->z_buffer[x]) continue;
+
+            /* Texture X coordinate */
+            int tex_x = (int)((x - draw_start_x) * TEX_SIZE / sprite_w);
+            if (tex_x < 0)          tex_x = 0;
+            if (tex_x >= TEX_SIZE)  tex_x = TEX_SIZE - 1;
+
+            /* Draw vertical stripe */
+            for (int y = y_start; y <= y_end; y++) {
+                /* Texture Y coordinate */
+                int d = y * 2 - SCREEN_H + sprite_h;
+                int tex_y = (d * TEX_SIZE) / (sprite_h * 2);
+                if (tex_y < 0)          tex_y = 0;
+                if (tex_y >= TEX_SIZE)  tex_y = TEX_SIZE - 1;
+
+                unsigned int col = tm_get_sprite_pixel(sp->texture_id,
+                                                       tex_x, tex_y);
+
+                /* Transparency: skip magenta alpha-key pixels */
+                if (col == SPRITE_ALPHA_KEY) continue;
+
+                fb[y * fb_stride + x] = col;
+            }
+        }
+    }
+}
+
+/* ── Main rendering ───────────────────────────────────────────────── */
+
 void platform_render(const GameState *gs)
 {
     /* Lock the streaming texture for direct pixel writes */
@@ -120,7 +204,7 @@ void platform_render(const GameState *gs)
         int tex_x = (int)(gs->hits[x].wall_x * TEX_SIZE);
         if (tex_x >= TEX_SIZE) tex_x = TEX_SIZE - 1;
 
-        uint16_t wt = gs->hits[x].wall_type;
+        uint16_t wt = gs->hits[x].tile_type;
         int side = gs->hits[x].side;
 
         /* Clamp visible range to screen */
@@ -134,7 +218,7 @@ void platform_render(const GameState *gs)
             if (tex_y < 0)            tex_y = 0;
             if (tex_y >= TEX_SIZE)    tex_y = TEX_SIZE - 1;
 
-            unsigned int col = tm_get_pixel(wt, tex_x, tex_y);
+            unsigned int col = tm_get_tile_pixel(wt, tex_x, tex_y);
 
             /* Darken y-side hits for depth cue */
             if (side == 1) col = darken(col);
@@ -143,6 +227,9 @@ void platform_render(const GameState *gs)
         }
 
     }
+
+    /* Sprite rendering pass (after walls, before unlock) */
+    render_sprites(fb, fb_stride, gs);
 
     SDL_UnlockTexture(fb_tex);
 

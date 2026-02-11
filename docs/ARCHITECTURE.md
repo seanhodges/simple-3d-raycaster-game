@@ -30,24 +30,27 @@ graph TB
 
     subgraph "Layer 1 — Core Engine"
         RC["raycaster.c / .h<br/>Map, Player, DDA, Physics"]
+        SPR["sprites.c / .h<br/>Sprite sorting"]
     end
 
     subgraph "Layer 2 — Platform"
-        PLAT["platform_sdl.c / .h<br/>SDL3 window, input, rendering"]
-        TEX["textures_sdl.c / .h<br/>Texture atlas manager"]
+        PLAT["platform_sdl.c / .h<br/>SDL3 window, input, rendering<br/>(includes sprite renderer)"]
+        TEX["textures_sdl.c / .h<br/>Texture atlas manager<br/>(walls + sprites)"]
     end
 
     subgraph "External"
         SDL3["SDL3 Library"]
-        MAP["map.txt + map_info.txt"]
-        BMP["assets/textures.bmp"]
+        MAP["map.txt + map_info.txt + map_sprites.txt"]
+        BMP["assets/textures.bmp<br/>assets/sprites.bmp"]
     end
 
     MAIN --> RC
+    MAIN --> SPR
     MAIN --> PLAT
     MAIN --> TEX
     PLAT --> SDL3
     PLAT --> TEX
+    PLAT --> SPR
     TEX --> SDL3
     TEX --> BMP
     subgraph "Layer 1b — Map Loader"
@@ -88,14 +91,14 @@ graph TB
 
 Responsibilities:
 - **Player physics** (`rc_update`) — movement, rotation, collision detection
-- **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer
+- **Raycasting** (`rc_cast`) — DDA algorithm fills the `RayHit` buffer and collects visible sprites from the map grid during traversal
 
 ### Map Loader (`map_manager_ascii.c` / `map_manager.h`)
 
 **Design pattern: File Parser Module** — separated from the core engine to allow test-time substitution with a fake implementation.
 
 Responsibilities:
-- **Map loading** (`map_load`) — parse two ASCII map files (tiles plane + info plane) into a standalone `Map` struct and initialise the `Player` position, direction, and camera
+- **Map loading** (`map_load`) — parse three ASCII map files (tiles plane + info plane + sprites plane) into a standalone `Map` struct and initialise the `Player` position, direction, and camera
 
 For unit tests, `map_manager_fake.c` provides an alternative `map_load` implementation that returns a hardcoded map with all tile types and info entries, removing filesystem dependencies from the core test suite.
 
@@ -121,10 +124,29 @@ The platform layer **reads from** the core but never writes to it, except throug
 
 Responsibilities:
 - Load a horizontal texture atlas (BMP) containing `TEX_COUNT` (10) square textures of `TEX_SIZE` (64) pixels each
-- Provide `tm_get_pixel(wall_type, tex_x, tex_y)` for colour sampling
+- Provide `tm_get_tile_pixel(tile_type, tex_x, tex_y)` for colour sampling
 - Fall back to a solid wall colour (`COL_WALL`) if the BMP file is missing
 
-The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
+The texture manager uses SDL for BMP loading but stores pixel data in a flat array for fast access. The renderer calls `tm_get_tile_pixel()` to sample textures — it never accesses the texture data directly. This keeps the renderer decoupled from file-loading logic.
+
+The texture manager also handles sprite textures via `tm_init_sprites()` and `tm_get_sprite_pixel()`. Sprite textures use colour-key transparency: pixels matching `#980088` (magenta, `SPRITE_ALPHA_KEY`) are treated as transparent and skipped during rendering.
+
+### Sprite System (`sprites.c` / `sprites.h`)
+
+**Design pattern: Pure Computation Module** — like `raycaster.c`, this file has zero platform dependencies.
+
+Responsibilities:
+- Sort visible sprites back-to-front by perpendicular distance (insertion sort)
+- Provide `sprites_sort()` which operates in-place on a pre-collected `Sprite` array
+
+Sprite collection happens during DDA traversal in `rc_cast()`. As each ray steps through floor cells, it checks the map's sprite plane for non-empty cells and adds unseen sprites (with their perpendicular distance to the camera plane) to `GameState.visible_sprites[]`. A per-frame visited bitmap prevents duplicates across the 800 rays. After all rays complete, `sprites_sort()` orders them back-to-front.
+
+The sprite rendering itself lives in `platform_sdl.c` (since it needs framebuffer access). The rendering pass occurs **after** walls are drawn and uses:
+- **Billboarding**: sprites are rendered as flat planes perpendicular to the view vector using the inverse camera matrix
+- **Z-buffering**: a 1D depth buffer (`GameState.z_buffer[]`) filled during raycasting prevents sprites from showing through walls
+- **Colour-key transparency**: pixels matching `SPRITE_ALPHA_KEY` are skipped
+
+Sprite placement is defined in the map's sprites plane (`Map.sprites[][]`), loaded from `map_sprites.txt`. Only sprites whose cells are traversed by at least one ray are collected, avoiding a full grid scan.
 
 ### Layer 3: Orchestrator (`main.c`)
 
@@ -179,12 +201,14 @@ sequenceDiagram
     end
 
     Main->>Core: rc_cast(&gs, &map)
-    Note over Core: For each of 800 screen columns:<br/>Cast ray via DDA, store distance in gs.hits[]
+    Note over Core: For each of 800 screen columns:<br/>Cast ray via DDA, store distance in gs.hits[]<br/>Collect visible sprites from traversed cells
+    Note over Core: Sort visible sprites back-to-front
 
     Main->>Plat: platform_render(&gs)
     Note over Plat: Clear screen (ceiling color)
     Note over Plat: Draw floor rectangle (bottom half)
     Note over Plat: For each column: draw wall strip from hits[]
+    Note over Plat: Render pre-sorted visible sprites
     Note over Plat: Draw debug overlay (player coords)
     Note over Plat: SDL_RenderPresent
 ```
@@ -226,7 +250,7 @@ graph TD
     F --> G
     G -->|No| D
     G -->|Yes| H["Calculate perpendicular distance<br/>(avoids fish-eye)"]
-    H --> I["Store in hits[x]:<br/>distance, side, wall_type"]
+    H --> I["Store in hits[x]:<br/>distance, side, tile_type"]
 ```
 
 ### Why Perpendicular Distance?
@@ -298,7 +322,7 @@ The renderer uses a streaming framebuffer texture for pixel-level textured wall 
    - Calculate strip height from `hits[x].wall_dist`
    - Derive `tex_x` from `hits[x].wall_x` (fractional hit position on the wall face)
    - For each pixel in the strip, compute `tex_y` from the vertical position
-   - Sample the colour from `tm_get_pixel(wall_type, tex_x, tex_y)`
+   - Sample the colour from `tm_get_pixel(tile_type, tex_x, tex_y)`
    - Apply y-side darkening for depth cue (halve RGB components)
 4. **Unlock** and blit the framebuffer to the renderer
 5. **Debug overlay** — player coordinates rendered as text (top-left corner)
@@ -315,7 +339,7 @@ Platform state (`SDL_Window*`, `SDL_Renderer*`) is stored in **file-scoped stati
 
 ## Map System
 
-Maps consist of two ASCII text files parsed at startup — one for geometry (tiles) and one for metadata (info). Both files share the same grid dimensions.
+Maps consist of three ASCII text files parsed at startup — one for geometry (tiles), one for metadata (info), and one for sprite placement (sprites). All files share the same grid dimensions.
 
 ### Tiles Plane (`map.txt`)
 
@@ -340,7 +364,7 @@ XXXX  XXXX  XXXX
 | `0`–`9` | Wall (texture N) | `N + 1` |
 | ` ` (space) | Empty floor | `0` (`TILE_FLOOR`) |
 
-Tile values encode wall presence and texture type: `0` = floor (walkable), `> 0` = wall with `wall_type = tile - 1`. The `is_wall()` function simply checks `tile > TILE_FLOOR`.
+Tile values encode wall presence and texture type: `0` = floor (walkable), `> 0` = wall with `tile_type = tile - 1`. The `is_wall()` function simply checks `tile > TILE_FLOOR`.
 
 ### Info Plane (`map_info.txt`)
 
@@ -375,6 +399,39 @@ The player spawns at the **center** of the spawn cell (`col + 0.5, row + 0.5`) f
 
 When the player reaches the centre of an `INFO_TRIGGER_ENDGAME` cell, `game_over` is set to `true` and the game displays a congratulations screen.
 
+### Sprites Plane (`map_sprites.txt`)
+
+Places sprite objects on the map grid. Each non-empty cell spawns a billboarded sprite at the centre of that cell during rendering:
+
+```
+XXXXXXXXXXXXXXXX
+X              X
+X              X
+X        2     X
+X              X
+X              X
+X              X
+X              X
+X              X
+X              X
+X1             X
+X         3    X
+X              X
+X              X
+X              X
+X              X
+XXXXXXXXXXXXXXXX
+```
+
+| Character | Meaning | Grid Value |
+|---|---|---|
+| `.` or ` ` | No sprite | `0` (`SPRITE_EMPTY`) |
+| `1`–`9` | Sprite (texture N-1) | `N` |
+
+Grid values store `texture_id + 1`, so a grid value of `1` means texture index 0.
+
+The sprites file is optional — if not provided, the sprites plane stays empty (all `SPRITE_EMPTY`).
+
 ### Constraints
 
 - Maximum size: 64×64 (`MAP_MAX_W` / `MAP_MAX_H`)
@@ -390,12 +447,16 @@ classDiagram
     class GameState {
         Player player
         RayHit hits[800]
+        float z_buffer[800]
+        Sprite visible_sprites[256]
+        int visible_sprite_count
         bool game_over
     }
 
     class Map {
         uint16 tiles[64][64]
         uint16 info[64][64]
+        uint16 sprites[64][64]
         int w
         int h
     }
@@ -410,7 +471,7 @@ classDiagram
         float wall_dist
         float wall_x
         int side
-        uint16 wall_type
+        uint16 tile_type
     }
 
     class Input {
@@ -420,11 +481,18 @@ classDiagram
         bool turn_right
     }
 
+    class Sprite {
+        float x, y
+        float perp_dist
+        uint16 texture_id
+    }
+
     GameState *-- Player
     GameState *-- RayHit
+    GameState *-- Sprite
 
     note for GameState "Player state and ray buffer.\nDefined in game_globals.h.\nAllocated on main()'s stack."
-    note for Map "Standalone map data (tiles + info planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
+    note for Map "Standalone map data (tiles + info + sprites planes).\nDefined in game_globals.h.\nOwned by main(), passed as\nconst Map* to engine functions."
     note for RayHit "Filled every frame by rc_cast().\nConsumed by platform_render().\nOne entry per screen column."
     note for Input "Written by platform layer.\nRead by core engine.\nBridge between layers."
 ```
@@ -432,7 +500,7 @@ classDiagram
 ### Ownership Model
 
 - `GameState` holds player state and the ray buffer — allocated on `main()`'s stack, passed by pointer everywhere
-- `Map` is a **standalone struct** with two planes (tiles + info) — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
+- `Map` is a **standalone struct** with three planes (tiles + info + sprites) — allocated on `main()`'s stack, initialised by `map_load()`, passed as `const Map *` to engine functions
 - `Input` is the **bridge** — written by the platform layer, read by the core engine
 - `RayHit[SCREEN_W]` is the **frame buffer** — filled by `rc_cast()`, consumed by `platform_render()`
 - Platform state (window, renderer) is **private** to `platform_sdl.c` via file-scoped statics

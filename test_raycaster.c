@@ -9,6 +9,7 @@
 #include "raycaster.h"
 #include "map_manager.h"
 #include "textures_sdl.h"
+#include "sprites.h"
 
 #include <assert.h>
 #include <math.h>
@@ -77,7 +78,7 @@ static void load_fake_map(Map *map, GameState *gs)
 {
     memset(map, 0, sizeof(*map));
     memset(gs, 0, sizeof(*gs));
-    bool ok = map_load(map, &gs->player, "ignored", "ignored");
+    bool ok = map_load(map, &gs->player, "ignored", "ignored", "ignored");
     assert(ok);
 }
 
@@ -110,7 +111,7 @@ static void test_fake_map_dimensions(void)
 
 static void test_fake_map_wall_x_hash(void)
 {
-    /* X and # both produce tile value 1 (wall_type 0) */
+    /* X and # both produce tile value 1 (tile_type 0) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -127,7 +128,7 @@ static void test_fake_map_wall_x_hash(void)
 
 static void test_fake_map_digit_walls(void)
 {
-    /* Digit N produces tile value N+1 (wall_type N) */
+    /* Digit N produces tile value N+1 (tile_type N) */
     Map map;
     GameState gs;
     load_fake_map(&map, &gs);
@@ -249,7 +250,7 @@ static void test_fake_map_walls_are_walls(void)
     }
 }
 
-static void test_fake_map_all_wall_types_present(void)
+static void test_fake_map_all_tile_types_present(void)
 {
     /* Verify wall types 0–9 are all present somewhere in the map */
     Map map;
@@ -263,9 +264,9 @@ static void test_fake_map_all_wall_types_present(void)
         for (int c = 0; c < map.w; c++) {
             uint16_t tile = map.tiles[r][c];
             if (tile > 0) {
-                uint16_t wall_type = tile - 1;
-                if (wall_type < TEX_COUNT)
-                    found[wall_type] = true;
+                uint16_t tile_type = tile - 1;
+                if (tile_type < TEX_COUNT)
+                    found[tile_type] = true;
             }
         }
     }
@@ -565,7 +566,7 @@ static void test_cast_all_columns_filled(void)
     /* Every column should have a positive wall distance */
     for (int x = 0; x < SCREEN_W; x++) {
         assert(gs.hits[x].wall_dist > 0.0f);
-        assert(gs.hits[x].wall_type == 0);   /* init_box_map uses tile=1 → type 0 */
+        assert(gs.hits[x].tile_type == 0);   /* init_box_map uses tile=1 → type 0 */
     }
 }
 
@@ -640,9 +641,9 @@ static void test_cast_wall_x_centre(void)
     ASSERT_NEAR(gs.hits[mid].wall_x, 0.5f, 0.05f);
 }
 
-static void test_cast_digit_wall_type(void)
+static void test_cast_digit_tile_type(void)
 {
-    /* Build a map where the east wall is tile value 6 (wall_type 5) */
+    /* Build a map where the east wall is tile value 6 (tile_type 5) */
     Map map;
     GameState gs;
     memset(&map, 0, sizeof(map));
@@ -677,7 +678,7 @@ static void test_cast_digit_wall_type(void)
 
     /* Centre column should hit the east wall (type 5) */
     int mid = SCREEN_W / 2;
-    assert(gs.hits[mid].wall_type == 5);
+    assert(gs.hits[mid].tile_type == 5);
 }
 
 static void test_cast_side_shading(void)
@@ -772,6 +773,165 @@ static void test_fake_map_endgame_triggers_game_over(void)
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
+/*  Sprite visibility tests (collected during rc_cast)                 */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+static void test_sprites_collect_empty(void)
+{
+    /* Empty sprite plane: rc_cast should collect 0 visible sprites */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 0);
+}
+
+static void test_sprites_collect_back_to_front(void)
+{
+    /* Three sprites ahead of the player should be sorted farthest first */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 20, 20, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    /* Place sprites at (7,5), (15,5), (10,5) — distances 2, 10, 5 from player */
+    map.sprites[5][7]  = 1;  /* closest,  tex 0 */
+    map.sprites[5][15] = 2;  /* farthest, tex 1 */
+    map.sprites[5][10] = 3;  /* middle,   tex 2 */
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 3);
+
+    /* First should be farthest (col 15, perp ~10) */
+    ASSERT_NEAR(gs.visible_sprites[0].x, 15.5f, 0.01f);
+    /* Second should be middle (col 10, perp ~5) */
+    ASSERT_NEAR(gs.visible_sprites[1].x, 10.5f, 0.01f);
+    /* Last should be closest (col 7, perp ~2) */
+    ASSERT_NEAR(gs.visible_sprites[2].x, 7.5f, 0.01f);
+}
+
+static void test_sprites_collect_single(void)
+{
+    /* Single sprite ahead should be collected with correct position/texture */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    map.sprites[5][7] = 1;  /* tex_id 0 */
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 1);
+    ASSERT_NEAR(gs.visible_sprites[0].x, 7.5f, 0.01f);
+    ASSERT_NEAR(gs.visible_sprites[0].y, 5.5f, 0.01f);
+    assert(gs.visible_sprites[0].texture_id == 0);
+}
+
+static void test_sprites_collect_texture_ids(void)
+{
+    /* Grid value N should produce texture_id N-1 */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    /* Place sprite ahead of the player at (7,5) */
+    map.sprites[5][7] = 4;  /* tex_id 3 */
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 1);
+    assert(gs.visible_sprites[0].texture_id == 3);
+}
+
+static void test_sprites_perp_dist_stored(void)
+{
+    /* Collected sprites should have positive perp_dist */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 20, 20, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    map.sprites[5][10] = 1;  /* 5 units ahead */
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 1);
+    /* Sprite at (10.5, 5.5), player at (5.5, 5.5) facing east:
+     * perpendicular distance ≈ 5.0 */
+    assert(gs.visible_sprites[0].perp_dist > 0.0f);
+    ASSERT_NEAR(gs.visible_sprites[0].perp_dist, 5.0f, 0.5f);
+}
+
+static void test_sprites_behind_not_collected(void)
+{
+    /* Sprites behind the camera should not be collected */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 20, 20, 10.5f, 10.5f, 1.0f, 0.0f);
+
+    /* Place sprite behind the player (to the west) */
+    map.sprites[10][3] = 1;
+
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 0);
+}
+
+static void test_sprites_sort_direct(void)
+{
+    /* Test sprites_sort directly on a pre-built array */
+    Sprite arr[3];
+    arr[0] = (Sprite){1.0f, 1.0f, 2.0f, 0};   /* closest */
+    arr[1] = (Sprite){5.0f, 5.0f, 10.0f, 1};   /* farthest */
+    arr[2] = (Sprite){3.0f, 3.0f, 5.0f, 2};    /* middle */
+
+    sprites_sort(arr, 3);
+
+    /* Should be sorted farthest first */
+    ASSERT_NEAR(arr[0].perp_dist, 10.0f, 0.01f);
+    ASSERT_NEAR(arr[1].perp_dist, 5.0f, 0.01f);
+    ASSERT_NEAR(arr[2].perp_dist, 2.0f, 0.01f);
+}
+
+static void test_fake_map_has_sprites(void)
+{
+    /* The fake map should contain sprites in its sprite plane */
+    Map map;
+    GameState gs;
+    load_fake_map(&map, &gs);
+
+    assert(map.sprites[1][4] == 1);  /* tex_id 0 */
+    assert(map.sprites[2][5] == 2);  /* tex_id 1 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/*  Z-buffer tests                                                     */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+static void test_z_buffer_filled(void)
+{
+    /* After rc_cast(), z_buffer should have positive values */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs, &map);
+
+    for (int x = 0; x < SCREEN_W; x++) {
+        assert(gs.z_buffer[x] > 0.0f);
+    }
+}
+
+static void test_z_buffer_matches_hits(void)
+{
+    /* z_buffer[x] should equal hits[x].wall_dist for all columns */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 10, 10, 5.5f, 5.5f, 1.0f, 0.0f);
+
+    rc_cast(&gs, &map);
+
+    for (int x = 0; x < SCREEN_W; x++) {
+        ASSERT_NEAR(gs.z_buffer[x], gs.hits[x].wall_dist, 0.0001f);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
 /*  Main                                                              */
 /* ═══════════════════════════════════════════════════════════════════ */
 
@@ -788,7 +948,7 @@ int main(void)
     RUN_TEST(test_fake_map_player_direction);
     RUN_TEST(test_fake_map_camera_plane);
     RUN_TEST(test_fake_map_walls_are_walls);
-    RUN_TEST(test_fake_map_all_wall_types_present);
+    RUN_TEST(test_fake_map_all_tile_types_present);
 
     printf("\n── rc_update ───────────────────────────────────────────\n");
     RUN_TEST(test_update_no_input);
@@ -812,13 +972,27 @@ int main(void)
     RUN_TEST(test_cast_edge_distances_longer);
     RUN_TEST(test_cast_wall_x_range);
     RUN_TEST(test_cast_wall_x_centre);
-    RUN_TEST(test_cast_digit_wall_type);
+    RUN_TEST(test_cast_digit_tile_type);
     RUN_TEST(test_cast_side_shading);
 
     printf("\n── Integration ─────────────────────────────────────────\n");
     RUN_TEST(test_load_then_cast);
     RUN_TEST(test_walk_and_cast);
     RUN_TEST(test_fake_map_endgame_triggers_game_over);
+
+    printf("\n── sprite visibility ───────────────────────────────────\n");
+    RUN_TEST(test_sprites_collect_empty);
+    RUN_TEST(test_sprites_collect_back_to_front);
+    RUN_TEST(test_sprites_collect_single);
+    RUN_TEST(test_sprites_collect_texture_ids);
+    RUN_TEST(test_sprites_perp_dist_stored);
+    RUN_TEST(test_sprites_behind_not_collected);
+    RUN_TEST(test_sprites_sort_direct);
+    RUN_TEST(test_fake_map_has_sprites);
+
+    printf("\n── z-buffer ────────────────────────────────────────────\n");
+    RUN_TEST(test_z_buffer_filled);
+    RUN_TEST(test_z_buffer_matches_hits);
 
     printf("\n══════════════════════════════════════════════════════════\n");
     printf("  %d / %d tests passed\n", tests_passed, tests_run);

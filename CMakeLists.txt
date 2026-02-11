@@ -46,6 +46,7 @@ if(SDL3_LINK_TARGET)
     add_executable(raycaster
         main.c
         raycaster.c
+        sprites.c
         map_manager_ascii.c
         platform_sdl.c
         textures_sdl.c
@@ -58,6 +59,10 @@ if(SDL3_LINK_TARGET)
     add_custom_command(TARGET raycaster POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_SOURCE_DIR}/map.txt   $<TARGET_FILE_DIR:raycaster>/map.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/map_info.txt $<TARGET_FILE_DIR:raycaster>/map_info.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/map_sprites.txt $<TARGET_FILE_DIR:raycaster>/map_sprites.txt
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/assets    $<TARGET_FILE_DIR:raycaster>/assets
         COMMENT "Copying game assets to build directory"
@@ -71,6 +76,7 @@ enable_testing()
 add_executable(test_raycaster
     test_raycaster.c
     raycaster.c
+    sprites.c
     map_manager_fake.c
 )
 target_link_libraries(test_raycaster PRIVATE m)
@@ -80,14 +86,19 @@ add_test(NAME test_raycaster COMMAND test_raycaster)
 add_executable(test_map_manager_ascii
     test_map_manager_ascii.c
     raycaster.c
+    sprites.c
     map_manager_ascii.c
 )
 target_link_libraries(test_map_manager_ascii PRIVATE m)
 
-# This test needs map.txt in the working directory
+# This test needs map.txt, map_info.txt, and map_sprites.txt in the working directory
 add_custom_command(TARGET test_map_manager_ascii POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/map.txt $<TARGET_FILE_DIR:test_map_manager_ascii>/map.txt
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/map_info.txt $<TARGET_FILE_DIR:test_map_manager_ascii>/map_info.txt
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/map_sprites.txt $<TARGET_FILE_DIR:test_map_manager_ascii>/map_sprites.txt
 )
 add_test(
     NAME test_map_manager_ascii
