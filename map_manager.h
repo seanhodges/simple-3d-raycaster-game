@@ -7,6 +7,6 @@
  *   sprites_path may be NULL (sprites plane left zeroed).
  *   Returns false on failure. */
 bool map_load(Map *map, Player *player, const char *tiles_path,
-              const char *info_path, const char *sprites_path);
+              const char *sprites_path, const char *info_path);
 
 #endif /* MAP_H */

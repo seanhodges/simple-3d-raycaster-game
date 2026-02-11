@@ -1,10 +1,10 @@
-/*  platform_sdl.c  –  SDL3 front-end / renderer
- *  ───────────────────────────────────────────────
+/*  frontend_sdl.c  –  SDL3 frontend / renderer
+ *  ────────────────────────────────────────────
  *  Reads the RayHit buffer from the core and draws vertical strips.
  *  Renders billboarded sprites after walls using a 1D z-buffer.
  *  Handles window lifecycle and keyboard input.
  */
-#include "platform_sdl.h"
+#include "frontend.h"
 #include "raycaster.h"
 #include "textures_sdl.h"
 
@@ -23,22 +23,25 @@ static SDL_Texture  *fb_tex   = NULL;  /* streaming framebuffer       */
 
 /* ── Public API ────────────────────────────────────────────────────── */
 
-bool platform_init(void)
+bool frontend_init(const char *tiles_path, const char *sprites_path)
 {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        fprintf(stderr, "platform_init: SDL_Init failed: %s\n", SDL_GetError());
+        fprintf(stderr, "frontend_init: SDL_Init failed: %s\n", SDL_GetError());
         return false;
     }
 
     window = SDL_CreateWindow(WINDOW_TITLE, SCREEN_W, SCREEN_H, 0);
     if (!window) {
-        fprintf(stderr, "platform_init: SDL_CreateWindow failed: %s\n", SDL_GetError());
+        fprintf(stderr, "frontend_init: SDL_CreateWindow failed: %s\n", SDL_GetError());
+        SDL_Quit();
         return false;
     }
 
     renderer = SDL_CreateRenderer(window, NULL);
     if (!renderer) {
-        fprintf(stderr, "platform_init: SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        fprintf(stderr, "frontend_init: SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return false;
     }
 
@@ -46,22 +49,46 @@ bool platform_init(void)
                                SDL_TEXTUREACCESS_STREAMING,
                                SCREEN_W, SCREEN_H);
     if (!fb_tex) {
-        fprintf(stderr, "platform_init: SDL_CreateTexture failed: %s\n", SDL_GetError());
+        fprintf(stderr, "frontend_init: SDL_CreateTexture failed: %s\n", SDL_GetError());
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return false;
+    }
+
+    /* Load textures */
+    if (!tm_init_tiles(tiles_path)) {
+        fprintf(stderr, "frontend_init: failed to load tile textures\n");
+        SDL_DestroyTexture(fb_tex);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return false;
+    }
+
+    if (!tm_init_sprites(sprites_path)) {
+        fprintf(stderr, "frontend_init: failed to load sprite textures\n");
+        tm_shutdown();
+        SDL_DestroyTexture(fb_tex);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return false;
     }
 
     return true;
 }
 
-void platform_shutdown(void)
+void frontend_shutdown(void)
 {
+    tm_shutdown();
     if (fb_tex)   SDL_DestroyTexture(fb_tex);
     if (renderer) SDL_DestroyRenderer(renderer);
     if (window)   SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
-bool platform_poll_input(Input *in)
+bool frontend_poll_input(Input *in)
 {
     SDL_Event ev;
     while (SDL_PollEvent(&ev)) {
@@ -175,7 +202,7 @@ static void render_sprites(unsigned int *fb, int fb_stride,
 
 /* ── Main rendering ───────────────────────────────────────────────── */
 
-void platform_render(const GameState *gs)
+void frontend_render(const GameState *gs)
 {
     /* Lock the streaming texture for direct pixel writes */
     void *tex_pixels = NULL;
@@ -249,7 +276,7 @@ void platform_render(const GameState *gs)
 
 /* ── End-screen rendering ─────────────────────────────────────────── */
 
-void platform_render_end_screen(void)
+void frontend_render_end_screen(void)
 {
     /* Blank the screen */
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
@@ -287,7 +314,7 @@ void platform_render_end_screen(void)
     SDL_RenderPresent(renderer);
 }
 
-bool platform_poll_end_input(void)
+bool frontend_poll_end_input(void)
 {
     SDL_Event ev;
     while (SDL_PollEvent(&ev)) {
@@ -301,7 +328,7 @@ bool platform_poll_end_input(void)
 
 /* ── Timer ─────────────────────────────────────────────────────────── */
 
-double platform_get_time(void)
+double frontend_get_time(void)
 {
     return (double)SDL_GetPerformanceCounter()
          / (double)SDL_GetPerformanceFrequency();

@@ -55,7 +55,7 @@ static void set_player_facing(Player *player, uint16_t spawn_type)
 /* ── Map loading ───────────────────────────────────────────────────── */
 
 bool map_load(Map *map, Player *player, const char *tiles_path,
-              const char *info_path, const char *sprites_path)
+              const char *sprites_path, const char *info_path)
 {
     memset(map, 0, sizeof(*map));
 

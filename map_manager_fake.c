@@ -54,11 +54,11 @@ static const float FAKE_PLAYER_Y = 1.5f;
 /* ── map_load (fake implementation) ───────────────────────────────── */
 
 bool map_load(Map *map, Player *player, const char *tiles_path,
-              const char *info_path, const char *sprites_path)
+              const char *sprites_path, const char *info_path)
 {
     (void)tiles_path;  /* ignored — always returns the hardcoded map */
-    (void)info_path;
     (void)sprites_path;
+    (void)info_path;
 
     memset(map, 0, sizeof(*map));
     map->w = FAKE_W;

@@ -3,8 +3,7 @@
  */
 #include "raycaster.h"
 #include "map_manager.h"
-#include "platform_sdl.h"
-#include "textures_sdl.h"
+#include "frontend.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -28,24 +27,13 @@ int main()
     GameState gs;
     memset(&gs, 0, sizeof(gs));
 
-    if (!map_load(&map, &gs.player, map_tiles_path, map_info_path, map_sprites_path)) {
+    if (!map_load(&map, &gs.player, map_tiles_path, map_sprites_path, map_info_path)) {
         fprintf(stderr, "main: failed to load map\n");
         return 1;
     }
 
-    /* First load the frontend */
-    if (!platform_init()) {
-        return 1;
-    }
-
-    if (!tm_init_tiles(texture_tiles_path)) {
-        platform_shutdown();
-        return 1;
-    }
-
-    if (!tm_init_sprites(texture_sprites_path)) {
-        tm_shutdown();
-        platform_shutdown();
+    /* Initialize frontend and textures */
+    if (!frontend_init(texture_tiles_path, texture_sprites_path)) {
         return 1;
     }
 
@@ -53,12 +41,12 @@ int main()
     Input  input;
     memset(&input, 0, sizeof(input));
 
-    double prev  = platform_get_time();
+    double prev  = frontend_get_time();
     float  accum = 0.0f;
 
     bool running = true;
     while (running) {
-        double now   = platform_get_time();
+        double now   = frontend_get_time();
         float  frame = (float)(now - prev);
         prev = now;
 
@@ -67,7 +55,7 @@ int main()
         accum += frame;
 
         /* Poll events once per frame */
-        running = platform_poll_input(&input);
+        running = frontend_poll_input(&input);
 
         /* Fixed-step logic updates */
         while (accum >= DT) {
@@ -77,7 +65,7 @@ int main()
 
         /* Render at display rate */
         rc_cast(&gs, &map);
-        platform_render(&gs);
+        frontend_render(&gs);
 
         /* Player reached the endgame trigger */
         if (gs.game_over) running = false;
@@ -85,14 +73,13 @@ int main()
 
     /* End-game screen */
     if (gs.game_over) {
-        platform_render_end_screen();
+        frontend_render_end_screen();
         bool waiting = true;
         while (waiting) {
-            waiting = platform_poll_end_input();
+            waiting = frontend_poll_end_input();
         }
     }
 
-    tm_shutdown();
-    platform_shutdown();
+    frontend_shutdown();
     return 0;
 }
