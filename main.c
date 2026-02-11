@@ -3,7 +3,7 @@
  */
 #include "raycaster.h"
 #include "map_manager.h"
-#include "platform_sdl.h"
+#include "frontend.h"
 #include "textures_sdl.h"
 
 #include <stdio.h>
@@ -34,18 +34,18 @@ int main()
     }
 
     /* First load the frontend */
-    if (!platform_init()) {
+    if (!frontend_init()) {
         return 1;
     }
 
     if (!tm_init_tiles(texture_tiles_path)) {
-        platform_shutdown();
+        frontend_shutdown();
         return 1;
     }
 
     if (!tm_init_sprites(texture_sprites_path)) {
         tm_shutdown();
-        platform_shutdown();
+        frontend_shutdown();
         return 1;
     }
 
@@ -53,12 +53,12 @@ int main()
     Input  input;
     memset(&input, 0, sizeof(input));
 
-    double prev  = platform_get_time();
+    double prev  = frontend_get_time();
     float  accum = 0.0f;
 
     bool running = true;
     while (running) {
-        double now   = platform_get_time();
+        double now   = frontend_get_time();
         float  frame = (float)(now - prev);
         prev = now;
 
@@ -67,7 +67,7 @@ int main()
         accum += frame;
 
         /* Poll events once per frame */
-        running = platform_poll_input(&input);
+        running = frontend_poll_input(&input);
 
         /* Fixed-step logic updates */
         while (accum >= DT) {
@@ -77,7 +77,7 @@ int main()
 
         /* Render at display rate */
         rc_cast(&gs, &map);
-        platform_render(&gs);
+        frontend_render(&gs);
 
         /* Player reached the endgame trigger */
         if (gs.game_over) running = false;
@@ -85,14 +85,14 @@ int main()
 
     /* End-game screen */
     if (gs.game_over) {
-        platform_render_end_screen();
+        frontend_render_end_screen();
         bool waiting = true;
         while (waiting) {
-            waiting = platform_poll_end_input();
+            waiting = frontend_poll_end_input();
         }
     }
 
     tm_shutdown();
-    platform_shutdown();
+    frontend_shutdown();
     return 0;
 }

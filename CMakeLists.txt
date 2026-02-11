@@ -48,7 +48,7 @@ if(SDL3_LINK_TARGET)
         raycaster.c
         sprites.c
         map_manager_ascii.c
-        platform_sdl.c
+        frontend_sdl.c
         textures_sdl.c
     )
 
