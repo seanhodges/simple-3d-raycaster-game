@@ -9,8 +9,6 @@
 #include "raycaster.h"
 #include "map_manager.h"
 #include "textures_sdl.h"
-#include "sprites.h"
-
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -872,20 +870,28 @@ static void test_sprites_behind_not_collected(void)
     assert(gs.visible_sprite_count == 0);
 }
 
-static void test_sprites_sort_direct(void)
+static void test_sprites_sort_via_cast(void)
 {
-    /* Test sprites_sort directly on a pre-built array */
-    Sprite arr[3];
-    arr[0] = (Sprite){1.0f, 1.0f, 2.0f, 0};   /* closest */
-    arr[1] = (Sprite){5.0f, 5.0f, 10.0f, 1};   /* farthest */
-    arr[2] = (Sprite){3.0f, 3.0f, 5.0f, 2};    /* middle */
+    /* Verify rc_cast produces sprites in descending perp_dist order
+     * using a 3-sprite scenario at known distances from the player */
+    Map map;
+    GameState gs;
+    init_box_map(&map, &gs, 30, 30, 5.5f, 15.5f, 1.0f, 0.0f);
 
-    sprites_sort(arr, 3);
+    /* Place sprites at columns 8, 20, 14 — distances ~3, ~15, ~9 */
+    map.sprites[15][8]  = 1;
+    map.sprites[15][20] = 2;
+    map.sprites[15][14] = 3;
 
-    /* Should be sorted farthest first */
-    ASSERT_NEAR(arr[0].perp_dist, 10.0f, 0.01f);
-    ASSERT_NEAR(arr[1].perp_dist, 5.0f, 0.01f);
-    ASSERT_NEAR(arr[2].perp_dist, 2.0f, 0.01f);
+    rc_cast(&gs, &map);
+    assert(gs.visible_sprite_count == 3);
+
+    /* Should be sorted farthest first (descending perp_dist) */
+    assert(gs.visible_sprites[0].perp_dist >= gs.visible_sprites[1].perp_dist);
+    assert(gs.visible_sprites[1].perp_dist >= gs.visible_sprites[2].perp_dist);
+    ASSERT_NEAR(gs.visible_sprites[0].x, 20.5f, 0.01f);
+    ASSERT_NEAR(gs.visible_sprites[1].x, 14.5f, 0.01f);
+    ASSERT_NEAR(gs.visible_sprites[2].x, 8.5f, 0.01f);
 }
 
 static void test_fake_map_has_sprites(void)
@@ -987,7 +993,7 @@ int main(void)
     RUN_TEST(test_sprites_collect_texture_ids);
     RUN_TEST(test_sprites_perp_dist_stored);
     RUN_TEST(test_sprites_behind_not_collected);
-    RUN_TEST(test_sprites_sort_direct);
+    RUN_TEST(test_sprites_sort_via_cast);
     RUN_TEST(test_fake_map_has_sprites);
 
     printf("\n── z-buffer ────────────────────────────────────────────\n");
