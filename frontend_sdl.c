@@ -23,7 +23,7 @@ static SDL_Texture  *fb_tex   = NULL;  /* streaming framebuffer       */
 
 /* ── Public API ────────────────────────────────────────────────────── */
 
-bool frontend_init(void)
+bool frontend_init(const char *tiles_path, const char *sprites_path)
 {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "frontend_init: SDL_Init failed: %s\n", SDL_GetError());
@@ -33,12 +33,15 @@ bool frontend_init(void)
     window = SDL_CreateWindow(WINDOW_TITLE, SCREEN_W, SCREEN_H, 0);
     if (!window) {
         fprintf(stderr, "frontend_init: SDL_CreateWindow failed: %s\n", SDL_GetError());
+        SDL_Quit();
         return false;
     }
 
     renderer = SDL_CreateRenderer(window, NULL);
     if (!renderer) {
         fprintf(stderr, "frontend_init: SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return false;
     }
 
@@ -47,6 +50,29 @@ bool frontend_init(void)
                                SCREEN_W, SCREEN_H);
     if (!fb_tex) {
         fprintf(stderr, "frontend_init: SDL_CreateTexture failed: %s\n", SDL_GetError());
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return false;
+    }
+
+    /* Load textures */
+    if (!tm_init_tiles(tiles_path)) {
+        fprintf(stderr, "frontend_init: failed to load tile textures\n");
+        SDL_DestroyTexture(fb_tex);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return false;
+    }
+
+    if (!tm_init_sprites(sprites_path)) {
+        fprintf(stderr, "frontend_init: failed to load sprite textures\n");
+        tm_shutdown();
+        SDL_DestroyTexture(fb_tex);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return false;
     }
 
@@ -55,6 +81,7 @@ bool frontend_init(void)
 
 void frontend_shutdown(void)
 {
+    tm_shutdown();
     if (fb_tex)   SDL_DestroyTexture(fb_tex);
     if (renderer) SDL_DestroyRenderer(renderer);
     if (window)   SDL_DestroyWindow(window);

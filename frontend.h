@@ -8,7 +8,11 @@
 #define COL_FLOOR      0x66666666   /* floor (dark grey)                 */
 #define COL_WALL_SHADE 0x000068FF   /* shading reference (darker blue)   */
 
-bool frontend_init(void);
+/**  Initialize the frontend and load textures.
+ *   tiles_path: path to wall texture atlas BMP
+ *   sprites_path: path to sprite texture atlas BMP
+ *   Returns false on unrecoverable error. */
+bool frontend_init(const char *tiles_path, const char *sprites_path);
 void frontend_shutdown(void);
 bool frontend_poll_input(Input *in);
 void frontend_render(const GameState *gs);

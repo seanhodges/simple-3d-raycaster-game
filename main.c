@@ -4,7 +4,6 @@
 #include "raycaster.h"
 #include "map_manager.h"
 #include "frontend.h"
-#include "textures_sdl.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -33,19 +32,8 @@ int main()
         return 1;
     }
 
-    /* First load the frontend */
-    if (!frontend_init()) {
-        return 1;
-    }
-
-    if (!tm_init_tiles(texture_tiles_path)) {
-        frontend_shutdown();
-        return 1;
-    }
-
-    if (!tm_init_sprites(texture_sprites_path)) {
-        tm_shutdown();
-        frontend_shutdown();
+    /* Initialize frontend and textures */
+    if (!frontend_init(texture_tiles_path, texture_sprites_path)) {
         return 1;
     }
 
@@ -92,7 +80,6 @@ int main()
         }
     }
 
-    tm_shutdown();
     frontend_shutdown();
     return 0;
 }
