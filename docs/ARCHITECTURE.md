@@ -428,7 +428,7 @@ Places sprite objects on the map grid. Each non-empty cell spawns a billboarded 
 | `.` or ` ` | No sprite | `0` (`SPRITE_EMPTY`) |
 | `1`–`9` | Sprite (texture N-1) | `N` |
 
-Grid values store `texture_id + 1`, so a grid value of `1` means texture index 0. At render time, `sprites_collect_and_sort()` scans the grid, builds `Sprite` instances at cell centres (`col + 0.5, row + 0.5`), and sorts them back-to-front by distance to the player.
+Grid values store `texture_id + 1`, so a grid value of `1` means texture index 0.
 
 The sprites file is optional — if not provided, the sprites plane stays empty (all `SPRITE_EMPTY`).
 
