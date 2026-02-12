@@ -10,7 +10,7 @@
 
 /* ── Sprite texture constants ────────────────────────────────────── */
 #define SPRITE_TEX_COUNT  4      /* number of sprite textures in atlas */
-#define SPRITE_ALPHA_KEY  0x980088FFu /* #980088 magenta = transparent */
+#define SPRITE_ALPHA_KEY  0x980088FF /* #980088 magenta = transparent */
 
 /* ── Fallback colour (RGBA8888) ───────────────────────────────────── */
 #define COL_WALL  0x00008BFF     /* dark blue used when BMP fails to load */
